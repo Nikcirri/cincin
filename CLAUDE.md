@@ -1,0 +1,18 @@
+# Regole di lavoro per il progetto Cin Cin
+
+- L'app raccoglie giochi per bere in compagnia: menu iniziale (`index.html`) e una pagina HTML per ogni gioco (`hai-mai.html`, `neon-sips.html`), impacchettati con Vite + Capacitor 8 Android. Niente CDN né risorse da internet: Tailwind 3, caratteri e icone sono inclusi nell'app, che deve funzionare offline. L'unica richiesta di rete è il controllo aggiornamenti verso l'API Releases di GitHub (`public/common.js` e `public/home.js`).
+- Struttura: `public/common.js` (funzioni comuni, script classico con funzioni globali usate da `onclick`), `public/home.js` (menu, elenco `GAMES`, aggiornamenti), una cartella per gioco in `public/` con i dati puri senza DOM (`hai-mai/questions.js`, `neon-sips/deck.js`) e l'interfaccia (`game.js`), `src/style.css` (stile comune), `src/native.js` (modulo Capacitor che espone `window.CinCinApp` e gestisce il tasto Indietro tramite `window.handleAndroidBack` di ogni pagina).
+- Stile: Tailwind **3** con le stesse classi del codice di Gemini (`cdn.tailwindcss.com`); `tailwind.config.js` legge le classi da `*.html` e `public/**/*.js`, quindi le classi vanno scritte per intero (niente nomi composti a pezzi).
+- Nuovo gioco: pagina `.html` + cartella in `public/` + voce in `vite.config.js` e in `GAMES` di `public/home.js`; deve avere `handleAndroidBack`, salvare la partita in `localStorage` (chiave `cincin_<gioco>_*_v1`) e avere i suoi test in `tests/`.
+- Ogni domanda, carta o regola nuova o modificata va nei file di dati con un test in `tests/*.test.js` (id unici, categorie esistenti, segnaposto validi).
+- Implementa tutto per intero: niente codice troncato, niente `TODO`, niente funzioni vuote o segnaposto.
+- Fine di ogni modifica, sempre in quest'ordine:
+  1. `npm run verify` (test + build) deve passare; se possibile anche `python3 tests/smoke.py`;
+  2. `npx cap sync android`;
+  3. aggiorna `CHANGELOG.md` con una sezione `## [X.Y.Z] - AAAA-MM-GG` e la versione in `package.json`;
+  4. commit e push su `main`: quando cambia la versione in `package.json`, GitHub Actions costruisce l'APK firmato e pubblica la Release `vX.Y.Z` (non servono tag a mano). Controlla che i workflow "Controllo" e "Pubblica APK" finiscano con successo;
+  5. dai all'utente il link https://github.com/Nikcirri/cincin/releases/latest e un elenco breve di cose da provare sul telefono.
+- L'utente è un principiante assoluto e usa solo il telefono: istruzioni passo passo, parole semplici, niente comandi da terminale per lui.
+- La chiave di firma non va mai nel repository. Vive solo nei Secrets di GitHub (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, facoltativo `ANDROID_KEY_ALIAS`, se manca si usa `lupus`): è la stessa chiave dell'app Lupus. Non cambiarla mai: con una chiave diversa gli aggiornamenti non si installano sopra la versione vecchia.
+- Non cambiare `appId` (`com.nikcirri.cincin`) né le chiavi di `localStorage` (`cincin_*_v1`), per non perdere i dati di chi ha già l'app.
+- Testi dell'interfaccia in italiano.

@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#07080D" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <title>Neon Sips · Cin Cin</title>
+  <script type="module" src="/src/main.js"></script>
+</head>
+<body data-page="neon-sips" class="flex flex-col justify-between min-h-[100dvh] antialiased selection:bg-fuchsia-500 selection:text-white">
+
+  <!-- ==================== TOAST NOTIFICATION CONTAINER ==================== -->
+  <div id="toast-container" class="safe-toasts fixed left-1/2 -translate-x-1/2 z-[70] flex flex-col items-center gap-2 w-[92%] max-w-md pointer-events-none"></div>
+
+  <!-- ==================== SCREEN 1: START / LOBBY SCREEN ==================== -->
+  <main id="start-screen" class="flex-1 flex flex-col justify-between w-full max-w-md mx-auto px-4 py-5">
+    <!-- Top Utility Bar (Menu, Deck Editor & Fullscreen) -->
+    <div class="flex items-center justify-between mb-1">
+      <div class="flex items-center gap-1.5">
+        <button
+          type="button"
+          onclick="goHome()"
+          class="w-8 h-8 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 flex items-center justify-center text-xs border border-slate-700/80 transition-colors active:scale-95"
+          title="Menu dei giochi"
+          aria-label="Menu dei giochi"
+        >
+          <i class="fa-solid fa-house"></i>
+        </button>
+        <button
+          type="button"
+          onclick="openDeckManagerModal('list')"
+          class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-purple-500/40 text-purple-300 text-xs font-bold transition-all active:scale-95 shadow-sm"
+        >
+          <i class="fa-solid fa-layer-group text-fuchsia-400"></i>
+          <span>Mazzo (<span id="lobby-deck-count">70</span>)</span>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-1.5">
+        <button 
+          type="button"
+          onclick="openDeckManagerModal('form')"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-fuchsia-500/15 hover:bg-fuchsia-500/25 border border-fuchsia-500/40 text-fuchsia-300 text-xs font-bold transition-all active:scale-95"
+          title="Crea nuova carta personalizzata"
+        >
+          <i class="fa-solid fa-plus"></i>
+          <span>Crea Carta</span>
+        </button>
+        <button 
+          type="button"
+          onclick="toggleFullscreen()"
+          class="fullscreen-toggle-btn w-8 h-8 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 flex items-center justify-center text-xs border border-slate-700/80 transition-colors"
+          title="Schermo Intero"
+          aria-label="Schermo Intero"
+        >
+          <i class="fa-solid fa-expand"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Top Branding -->
+    <div class="text-center mt-1 mb-3">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/30 text-fuchsia-400 text-xs font-bold tracking-widest uppercase mb-2">
+        <i class="fa-solid fa-martini-glass-citrus animate-bounce"></i> Party Drinking Game
+      </div>
+      <h1 class="font-display text-4xl sm:text-5xl font-black tracking-tight bg-gradient-to-r from-fuchsia-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(217,70,239,0.35)]">
+        NEON SIPS
+      </h1>
+      <p class="text-slate-400 text-sm mt-1">
+        <span id="lobby-subtitle-count">70</span> carte nel mazzo • 7 categorie • Personalizzabile
+      </p>
+    </div>
+
+    <!-- Player Setup Box -->
+    <div id="lobby-panel" class="glass-panel rounded-3xl p-5 shadow-2xl flex-1 flex flex-col justify-between max-h-[64dvh]">
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-bold text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-users text-purple-400"></i>
+            Giocatori al Tavolo
+          </h2>
+          <span id="player-count-badge" class="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+            0 inseriti (min 2)
+          </span>
+        </div>
+
+        <!-- Add Player Input Form -->
+        <form id="add-player-form" class="flex gap-2 mb-4" onsubmit="handleAddPlayer(event)">
+          <div class="relative flex-1">
+            <input 
+              type="text" 
+              id="player-input" 
+              placeholder="Nome giocatore..." 
+              maxlength="18"
+              autocomplete="off"
+              class="w-full bg-slate-900/90 text-white placeholder-slate-500 text-sm font-medium rounded-xl px-4 py-3.5 border border-slate-700/80 focus:outline-none focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/25 transition-all"
+            />
+          </div>
+          <button 
+            type="submit" 
+            class="bg-gradient-to-br from-fuchsia-500 to-purple-600 hover:from-fuchsia-400 hover:to-purple-500 active:scale-95 text-white font-bold px-5 py-3.5 rounded-xl shadow-lg shadow-fuchsia-500/20 transition-all flex items-center justify-center"
+            aria-label="Aggiungi giocatore"
+          >
+            <i class="fa-solid fa-plus text-lg"></i>
+          </button>
+        </form>
+      </div>
+
+      <!-- Player List Scrollable Area -->
+      <div id="lobby-player-list" class="flex-1 overflow-y-auto space-y-2 pr-1 my-1">
+        <!-- Populated dynamically via JS -->
+      </div>
+
+      <!-- Quick Sample & Clear Footer -->
+      <div class="pt-3 mt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+        <button type="button" onclick="addSamplePlayers()" class="hover:text-fuchsia-400 transition-colors flex items-center gap-1.5 py-1">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Riempi gruppo demo
+        </button>
+        <button type="button" onclick="clearAllPlayers()" class="hover:text-rose-400 transition-colors flex items-center gap-1.5 py-1">
+          <i class="fa-solid fa-trash-can"></i> Svuota lista
+        </button>
+      </div>
+    </div>
+
+    <!-- Category Legend Preview & Start CTA -->
+    <div class="mt-4 space-y-3">
+      <div class="flex flex-wrap justify-center gap-1.5 text-[11px] font-semibold">
+        <span class="px-2.5 py-1 rounded-full bg-yellow-400/10 text-yellow-300 border border-yellow-400/25">⚡ Catena</span>
+        <span class="px-2.5 py-1 rounded-full bg-sky-400/10 text-sky-300 border border-sky-400/25">🎯 Bersaglio</span>
+        <span class="px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/25">⚔️ Duello 1v1</span>
+        <span class="px-2.5 py-1 rounded-full bg-emerald-400/10 text-emerald-300 border border-emerald-400/25">🛡️ Scudo</span>
+        <span class="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/25">👑 Nuova Regola</span>
+        <span class="px-2.5 py-1 rounded-full bg-orange-400/10 text-orange-300 border border-orange-400/25">⚖️ La Giuria</span>
+        <span class="px-2.5 py-1 rounded-full bg-pink-500/10 text-pink-300 border border-pink-500/25">🔗 Maledizione</span>
+      </div>
+
+      <!-- Partita salvata: si riprende da dove si era rimasti -->
+      <button
+        id="resume-game-btn"
+        type="button"
+        onclick="resumeGame()"
+        class="hidden w-full py-3.5 rounded-2xl font-display font-bold text-base tracking-wide text-emerald-200 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/50 shadow-[0_0_20px_rgba(74,222,128,0.18)] transition-all flex items-center justify-center gap-2.5 active:scale-[0.98]"
+      >
+        <i class="fa-solid fa-play"></i>
+        <span id="resume-game-label">RIPRENDI LA PARTITA</span>
+      </button>
+
+      <button
+        id="start-game-btn"
+        onclick="startGame()"
+        disabled
+        class="w-full py-4 rounded-2xl font-display font-bold text-lg tracking-wide text-white shadow-xl transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-800 btn-neon-main active:scale-[0.98]"
+      >
+        <span id="start-game-label">INIZIA LA SERATA</span>
+        <i class="fa-solid fa-fire-flame-curved"></i>
+      </button>
+    </div>
+  </main>
+
+  <!-- ==================== SCREEN 2: MAIN GAME SCREEN ==================== -->
+  <main id="game-screen" class="hidden flex-1 flex flex-col justify-between w-full max-w-md mx-auto px-3.5 py-3">
+    
+    <!-- 1. TOP HEADER: Turn Indicator, Deck Counter & Controls -->
+    <header class="space-y-2.5">
+      <!-- Top Bar -->
+      <div class="flex items-center justify-between glass-panel rounded-2xl px-3.5 py-2.5">
+        <!-- Current Turn Info -->
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div id="turn-avatar" class="w-9 h-9 rounded-xl bg-gradient-to-br from-fuchsia-500 to-purple-600 flex items-center justify-center font-display font-bold text-sm text-white shadow-md shrink-0">
+            G1
+          </div>
+          <div class="truncate">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-tight">
+              Turno di
+            </div>
+            <div id="current-turn-name" class="font-display font-bold text-base text-white truncate leading-tight">
+              Giocatore
+            </div>
+          </div>
+        </div>
+
+        <!-- Deck Progress & Utility Buttons -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <div id="deck-counter" class="px-2.5 py-1 rounded-lg bg-slate-800/90 border border-slate-700 text-xs font-bold text-slate-300">
+            1 / 70
+          </div>
+          <button 
+            onclick="openDeckManagerModal('list')" 
+            class="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-purple-950/70 hover:text-purple-300 text-slate-300 flex items-center justify-center text-xs border border-slate-700/80 transition-colors"
+            title="Gestisci Mazzo & Carte Personalizzate"
+            aria-label="Gestisci Mazzo"
+          >
+            <i class="fa-solid fa-layer-group"></i>
+          </button>
+          <button 
+            onclick="toggleFullscreen()" 
+            class="fullscreen-toggle-btn w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs border border-slate-700/80 transition-colors"
+            title="Schermo Intero"
+            aria-label="Schermo Intero"
+          >
+            <i class="fa-solid fa-expand"></i>
+          </button>
+          <button 
+            onclick="toggleAudio()" 
+            id="audio-toggle-btn"
+            class="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs border border-slate-700/80 transition-colors"
+            title="Audio On/Off"
+          >
+            <i class="fa-solid fa-volume-high"></i>
+          </button>
+          <button 
+            onclick="openResetModal()" 
+            class="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-rose-950/60 hover:text-rose-400 text-slate-300 flex items-center justify-center text-xs border border-slate-700/80 transition-colors"
+            title="Opzioni Partita"
+          >
+            <i class="fa-solid fa-gear"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. QUICK PANEL: Active Shields & Active Table Rules/Curses -->
+      <div class="glass-panel rounded-2xl p-2.5 space-y-2">
+        <!-- Players & Shields Strip -->
+        <div>
+          <div class="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 px-1">
+            <span><i class="fa-solid fa-shield-halved text-emerald-400 mr-1"></i> Giocatori & Scudi Attivi</span>
+            <span class="text-[10px] font-normal text-slate-500">Tocca 🛡️ per usare</span>
+          </div>
+          <div id="players-shield-bar" class="flex items-center gap-1.5 overflow-x-auto pb-1">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Active Table Rules & Curses Strip -->
+        <div id="active-effects-container" class="border-t border-slate-800/90 pt-2">
+          <div class="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 px-1">
+            <span><i class="fa-solid fa-scroll text-purple-400 mr-1"></i> Regole & Maledizioni sul Tavolo (<span id="active-rules-count">0</span>)</span>
+            <button onclick="openRulesModal()" class="text-[10px] text-purple-400 hover:text-purple-300 font-semibold underline">
+              Vedi dettaglio
+            </button>
+          </div>
+          <div id="active-rules-chips" class="flex items-center gap-1.5 overflow-x-auto py-0.5">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 3. CENTER CARD AREA -->
+    <section class="flex-1 flex flex-col justify-center my-2.5 game-card-wrapper">
+      <div id="active-card" class="game-card rounded-3xl p-5 sm:p-6 flex flex-col justify-between min-h-[340px] sm:min-h-[370px]">
+        
+        <!-- Card Top Header: Category Badge & Sip Penalty -->
+        <div class="relative z-10 flex items-center justify-between gap-2">
+          <div id="card-category-badge" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider border">
+            <i id="card-category-icon" class="fa-solid fa-bolt"></i>
+            <span id="card-category-name">CATEGORIA</span>
+          </div>
+          <div id="card-sips-badge" class="px-3 py-1 rounded-full bg-slate-900/90 border border-slate-700 text-xs font-extrabold text-slate-200 flex items-center gap-1.5">
+            <i class="fa-solid fa-beer-mug-empty text-amber-400"></i>
+            <span id="card-sips-text">2 Sorsi</span>
+          </div>
+        </div>
+
+        <!-- Card Center: Big Icon, Title & Dynamic Text -->
+        <div class="relative z-10 my-auto py-5 text-center space-y-3">
+          <div id="card-center-icon-wrap" class="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center text-3xl shadow-inner border border-white/10 mb-2">
+            <i id="card-center-icon" class="fa-solid fa-dice"></i>
+          </div>
+
+          <h2 id="card-title" class="font-display text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-snug">
+            Titolo della Carta
+          </h2>
+
+          <p id="card-description" class="text-slate-200 text-base sm:text-lg leading-relaxed font-medium px-1">
+            Descrizione della carta...
+          </p>
+        </div>
+
+        <!-- Card Bottom: Interactive Context Actions (Shield / Rule / 3s Timer / Jury Countdown) -->
+        <div id="card-action-zone" class="relative z-10 pt-3 border-t border-white/10 flex flex-col gap-2">
+          <!-- Populated dynamically based on category -->
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 4. BOTTOM LARGE BUTTON: NEXT CARD -->
+    <footer class="pt-1 pb-2">
+      <button 
+        id="next-card-btn"
+        onclick="nextTurnAndDraw()" 
+        class="w-full py-4 rounded-2xl font-display font-extrabold text-lg tracking-wide text-white shadow-xl btn-neon-main active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+      >
+        <span>PROSSIMA CARTA</span>
+        <i class="fa-solid fa-forward-step text-base"></i>
+      </button>
+    </footer>
+
+  </main>
+
+  <!-- ==================== MODAL 1: CONSUME SHIELD CONFIRMATION ==================== -->
+  <div id="shield-modal" class="safe-modal fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm">
+    <div class="glass-panel rounded-3xl p-6 w-full max-w-sm border border-emerald-500/40 shadow-[0_0_30px_rgba(74,222,128,0.25)] text-center space-y-4 animate-card-in">
+      <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-400 flex items-center justify-center text-3xl mx-auto">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <h3 class="font-display text-xl font-bold text-white">
+        Usare uno Scudo?
+      </h3>
+      <p id="shield-modal-text" class="text-sm text-slate-300 leading-relaxed">
+        Vuoi consumare uno Scudo di <strong class="text-emerald-400">Giocatore</strong> per saltare questa bevuta?
+      </p>
+      <div class="flex gap-2.5 pt-2">
+        <button onclick="closeShieldModal()" class="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm transition-colors">
+          Annulla
+        </button>
+        <button id="confirm-use-shield-btn" class="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm shadow-lg shadow-emerald-500/25 transition-all">
+          🛡️ Usa Scudo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 2: ACTIVE RULES & CURSES DETAIL ==================== -->
+  <div id="rules-modal" class="safe-modal fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm">
+    <div class="glass-panel rounded-3xl p-5 w-full max-w-md border border-purple-500/40 shadow-2xl flex flex-col max-h-[80dvh]">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="font-display text-lg font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-scroll text-purple-400"></i>
+          Regole & Maledizioni Attive
+        </h3>
+        <button onclick="closeRulesModal()" class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="rules-modal-list" class="flex-1 overflow-y-auto space-y-2.5 my-4 pr-1">
+        <!-- Populated dynamically -->
+      </div>
+      <button onclick="closeRulesModal()" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm">
+        Chiudi
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 3: SETTINGS / PLAYERS / RESET ==================== -->
+  <div id="reset-modal" class="safe-modal fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm">
+    <div class="glass-panel rounded-3xl p-6 w-full max-w-sm max-h-full overflow-y-auto border border-slate-700 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-display text-lg font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-fuchsia-400"></i> Opzioni Partita
+        </h3>
+        <button onclick="closeResetModal()" class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Quick add player mid-game -->
+      <div class="pt-1">
+        <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Aggiungi un imbucato a partita in corso:</label>
+        <form onsubmit="handleAddPlayerMidGame(event)" class="flex gap-2">
+          <input 
+            type="text" 
+            id="midgame-player-input" 
+            placeholder="Nome nuovo giocatore..." 
+            maxlength="18"
+            class="flex-1 min-w-0 bg-slate-900 text-white text-sm rounded-xl px-3 py-2.5 border border-slate-700 focus:outline-none focus:border-fuchsia-500"
+          />
+          <button type="submit" class="shrink-0 whitespace-nowrap px-4 py-2.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold text-sm">
+            + Aggiungi
+          </button>
+        </form>
+      </div>
+
+      <!-- Players at the table: remove someone who leaves -->
+      <div>
+        <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Giocatori al tavolo (tocca ✕ se qualcuno se ne va):</label>
+        <div id="midgame-players-list" class="flex flex-wrap gap-1.5">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <div class="border-t border-slate-800 pt-3 space-y-2.5">
+        <button onclick="closeResetModal(); openDeckManagerModal('list');" class="w-full py-3 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-200 font-bold text-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-layer-group text-fuchsia-400"></i> Gestisci Mazzo & Carte
+        </button>
+        <button onclick="reshuffleDeckManual()" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-shuffle text-sky-400"></i> Rimescola il Mazzo Ora
+        </button>
+        <button onclick="returnToLobby()" class="w-full py-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-bold text-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-right-from-bracket"></i> Torna alla Schermata Iniziale
+        </button>
+        <button onclick="goHome()" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-house text-cyan-300"></i> Menu dei Giochi
+        </button>
+        <p class="text-[11px] text-slate-500 text-center leading-relaxed">La partita resta salvata: dalla schermata iniziale tocchi "Riprendi la partita".</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 4: DECK MANAGER & CARD EDITOR ==================== -->
+  <div id="deck-manager-modal" class="safe-modal fixed inset-0 z-50 hidden flex items-center justify-center bg-black/85 backdrop-blur-md">
+    <div class="glass-panel rounded-3xl p-4 sm:p-5 w-full max-w-lg border border-purple-500/40 shadow-[0_0_40px_rgba(168,85,247,0.25)] flex flex-col h-full max-h-[820px]">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+        <div>
+          <h3 class="font-display text-lg font-extrabold text-white flex items-center gap-2">
+            <i class="fa-solid fa-wand-magic-sparkles text-fuchsia-400"></i>
+            Editor & Gestione Mazzo
+          </h3>
+          <p class="text-[11px] text-slate-400">
+            <span id="editor-total-count" class="font-bold text-purple-300">70</span> carte attive • Salvate automaticamente sul dispositivo
+          </p>
+        </div>
+        <button onclick="closeDeckManagerModal()" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Mode Switch Tabs (Lista Carte vs Crea/Modifica Carta) -->
+      <div class="grid grid-cols-2 gap-2 my-3 p-1 rounded-2xl bg-slate-900/90 border border-slate-800 shrink-0">
+        <button 
+          type="button"
+          id="tab-btn-list"
+          onclick="switchDeckManagerTab('list')"
+          class="py-2 px-3 rounded-xl font-display font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 bg-purple-600 text-white shadow"
+        >
+          <i class="fa-solid fa-list-ul"></i>
+          <span>Mazzo (<span id="tab-deck-count">70</span>)</span>
+        </button>
+        <button 
+          type="button"
+          id="tab-btn-form"
+          onclick="switchDeckManagerTab('form')"
+          class="py-2 px-3 rounded-xl font-display font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white"
+        >
+          <i class="fa-solid fa-plus-circle"></i>
+          <span id="tab-form-label">Nuova Carta</span>
+        </button>
+      </div>
+
+      <!-- TAB 1: CARD LIST, SEARCH & FILTERS -->
+      <div id="deck-tab-list" class="flex-1 flex flex-col min-h-0">
+        <!-- Search & Category Filter Bar -->
+        <div class="space-y-2 mb-2.5 shrink-0">
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+            <input 
+              type="text" 
+              id="deck-search-input"
+              oninput="renderDeckManagerList()"
+              placeholder="Cerca carta per titolo o parola chiave..."
+              class="w-full bg-slate-900/90 text-white placeholder-slate-500 text-xs sm:text-sm rounded-xl pl-9 pr-8 py-2.5 border border-slate-800 focus:outline-none focus:border-fuchsia-500"
+            />
+            <button 
+              type="button"
+              onclick="clearDeckSearch()"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs px-1"
+              title="Pulisci ricerca"
+            >
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <!-- Category Filter Pills -->
+          <div id="deck-category-filters" class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] font-bold">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Scrollable Cards List -->
+        <div id="deck-manager-cards-list" class="flex-1 overflow-y-auto space-y-2 pr-1 my-1">
+          <!-- Populated via JS -->
+        </div>
+
+        <!-- Bottom Bar: Restore Default Deck -->
+        <div class="pt-2.5 mt-1 border-t border-slate-800/90 flex items-center justify-between gap-2 shrink-0">
+          <button 
+            type="button"
+            onclick="openRestoreDefaultConfirm()"
+            class="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-1.5 transition-colors"
+          >
+            <i class="fa-solid fa-rotate-left"></i>
+            <span>Ripristina Predefinite</span>
+          </button>
+
+          <button 
+            type="button"
+            onclick="prepareNewCardForm()"
+            class="px-4 py-2 rounded-xl bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:from-fuchsia-400 hover:to-purple-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-lg shadow-fuchsia-500/20"
+          >
+            <i class="fa-solid fa-plus"></i>
+            <span>Aggiungi Carta</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB 2: CREATE / EDIT CARD FORM -->
+      <form id="deck-tab-form" onsubmit="handleSaveCardForm(event)" class="hidden flex-1 flex flex-col justify-between overflow-y-auto pr-1 space-y-3">
+        <div class="space-y-3">
+          <input type="hidden" id="edit-card-id" value="" />
+
+          <!-- Editing Banner Indicator -->
+          <div id="editing-mode-banner" class="hidden px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-400/40 text-amber-200 text-xs flex items-center justify-between">
+            <span><i class="fa-solid fa-pen-to-square mr-1"></i> Stai modificando una carta esistente</span>
+            <button type="button" onclick="prepareNewCardForm()" class="underline font-bold text-amber-300 hover:text-white">
+              Crea nuova invece
+            </button>
+          </div>
+
+          <!-- Category Selector -->
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">
+              1. Categoria della Carta
+            </label>
+            <select 
+              id="form-card-category" 
+              onchange="handleFormCategoryChange()"
+              class="w-full bg-slate-900 text-white text-sm font-bold rounded-xl px-3.5 py-2.5 border border-slate-700 focus:outline-none focus:border-fuchsia-500"
+            >
+              <option value="CATENA">⚡ Catena (Giallo - Giro a tempo 3s)</option>
+              <option value="BERSAGLIO">🎯 Bersaglio (Blu - Penitenza di gruppo)</option>
+              <option value="DUELLO">⚔️ Duello 1v1 (Rosso - Sfida tra {p1} e {p2})</option>
+              <option value="SCUDO">🛡️ Scudo (Verde - Immunità per {p1})</option>
+              <option value="REGOLA">👑 Nuova Regola (Viola - Legge sul tavolo)</option>
+              <option value="GIURIA">⚖️ La Giuria (Arancione - Votazione al 3)</option>
+              <option value="MALEDIZIONE">🔗 Maledizione (Fucsia - Legame {p1} e {p2})</option>
+            </select>
+          </div>
+
+          <!-- Title & Sips Row -->
+          <div class="grid grid-cols-1 sm:grid-cols-5 gap-2.5">
+            <div class="sm:col-span-3">
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">
+                2. Titolo della Carta
+              </label>
+              <input 
+                type="text" 
+                id="form-card-title" 
+                required
+                maxlength="45"
+                placeholder="Es. Il Re del Karaoke"
+                class="w-full bg-slate-900 text-white text-sm rounded-xl px-3.5 py-2.5 border border-slate-700 focus:outline-none focus:border-fuchsia-500"
+              />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">
+                3. Penalità / Sorsi
+              </label>
+              <input 
+                type="text" 
+                id="form-card-sips" 
+                required
+                maxlength="22"
+                placeholder="Es. 2 Sorsi"
+                value="2 Sorsi"
+                class="w-full bg-slate-900 text-white text-sm rounded-xl px-3.5 py-2.5 border border-slate-700 focus:outline-none focus:border-fuchsia-500"
+              />
+            </div>
+          </div>
+
+          <!-- Quick Sips Presets -->
+          <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span class="text-slate-400 font-semibold mr-1">Sorsi rapidi:</span>
+            <button type="button" onclick="setFormSips('1 Sorso')" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">1 Sorso</button>
+            <button type="button" onclick="setFormSips('2 Sorsi')" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">2 Sorsi</button>
+            <button type="button" onclick="setFormSips('3 Sorsi')" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">3 Sorsi</button>
+            <button type="button" onclick="setFormSips('Mezzo Bicchiere!')" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30">Mezzo Bicchiere!</button>
+            <button type="button" onclick="setFormSips('1 Sorso x Voto')" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">1 Sorso x Voto</button>
+            <button type="button" onclick="setFormSips('Immunità')" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30">Immunità</button>
+          </div>
+
+          <!-- Extra Fields for REGOLA or MALEDIZIONE -->
+          <div id="form-rule-extra-fields" class="hidden p-3 rounded-2xl bg-purple-950/25 border border-purple-500/30 space-y-2.5">
+            <div class="text-[11px] font-bold text-purple-300 uppercase tracking-wider">
+              <i class="fa-solid fa-thumbtack mr-1"></i> Impostazioni Regola / Maledizione sul Tavolo
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <div class="col-span-2">
+                <label class="block text-[11px] text-slate-300 mb-1">Testo breve nel banner in alto:</label>
+                <input 
+                  type="text" 
+                  id="form-card-ruletitle" 
+                  maxlength="40"
+                  placeholder="Es. Vietato dire 'Bere' ({p1})"
+                  class="w-full bg-slate-900 text-white text-xs rounded-xl px-3 py-2 border border-slate-700 focus:outline-none focus:border-purple-400"
+                />
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-300 mb-1">Durata (Giri):</label>
+                <input 
+                  type="number" 
+                  id="form-card-duration" 
+                  min="1" 
+                  max="30" 
+                  value="6"
+                  class="w-full bg-slate-900 text-white text-xs font-bold rounded-xl px-3 py-2 border border-slate-700 focus:outline-none focus:border-purple-400"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Text / Description & Dynamic Placeholders -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                4. Testo della Carta
+              </label>
+              <span class="text-[10px] text-slate-400">Usa i bottoni per i nomi dinamici</span>
+            </div>
+
+            <!-- Dynamic Placeholders Quick Insert Buttons -->
+            <div class="flex flex-wrap gap-1.5 mb-2">
+              <button 
+                type="button" 
+                onclick="insertPlaceholderInText('{p1}')"
+                class="px-2.5 py-1.5 rounded-xl bg-fuchsia-500/20 hover:bg-fuchsia-500/30 border border-fuchsia-500/40 text-fuchsia-200 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95"
+              >
+                <i class="fa-solid fa-user-tag text-fuchsia-400"></i>
+                <span>+ Inserisci <code>{p1}</code> (Turno)</span>
+              </button>
+              <button 
+                type="button" 
+                onclick="insertPlaceholderInText('{p2}')"
+                class="px-2.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-200 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95"
+              >
+                <i class="fa-solid fa-user-group text-cyan-400"></i>
+                <span>+ Inserisci <code>{p2}</code> (Avversario)</span>
+              </button>
+            </div>
+
+            <textarea 
+              id="form-card-text" 
+              rows="4"
+              required
+              maxlength="320"
+              placeholder="Scrivi qui la sfida o penitenza... Esempio: {p1} sfida {p2} a braccio di ferro! Chi perde beve 3 sorsi."
+              class="w-full bg-slate-900 text-white text-sm rounded-xl p-3.5 border border-slate-700 focus:outline-none focus:border-fuchsia-500 leading-relaxed"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Form Submit / Cancel Footer -->
+        <div class="flex gap-2 pt-2 border-t border-slate-800 shrink-0">
+          <button 
+            type="button" 
+            onclick="switchDeckManagerTab('list')"
+            class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs sm:text-sm"
+          >
+            Annulla
+          </button>
+          <button 
+            type="submit"
+            id="form-save-card-btn"
+            class="flex-1 py-3 rounded-xl bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:from-fuchsia-400 hover:to-purple-500 text-white font-display font-extrabold text-sm shadow-lg shadow-fuchsia-500/25 flex items-center justify-center gap-2"
+          >
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span id="form-save-card-label">Salva Carta nel Mazzo</span>
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 5: RESTORE DEFAULT DECK CONFIRMATION ==================== -->
+  <div id="restore-deck-modal" class="safe-modal fixed inset-0 z-[60] hidden flex items-center justify-center bg-black/85 backdrop-blur-sm">
+    <div class="glass-panel rounded-3xl p-6 w-full max-w-sm border border-rose-500/40 shadow-2xl text-center space-y-4 animate-card-in">
+      <div class="w-14 h-14 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center text-2xl mx-auto">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <h3 class="font-display text-xl font-bold text-white">
+        Ripristinare il Mazzo Originale?
+      </h3>
+      <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+        Tutte le carte personalizzate aggiunte e le modifiche fatte alle 70 carte predefinite verranno azzerate.
+      </p>
+      <div class="flex gap-2.5 pt-2">
+        <button type="button" onclick="closeRestoreDefaultConfirm()" class="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm">
+          Annulla
+        </button>
+        <button type="button" onclick="confirmRestoreDefaultDeck()" class="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-sm shadow-lg shadow-rose-600/30">
+          Sì, Ripristina
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./common.js"></script>
+  <script src="./neon-sips/deck.js"></script>
+  <script src="./neon-sips/game.js"></script>
+</body>
+</html>

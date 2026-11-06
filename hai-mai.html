@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#07080D" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <title>Hai Mai? · Cin Cin</title>
+  <script type="module" src="/src/main.js"></script>
+</head>
+<body data-page="hai-mai" class="flex flex-col min-h-[100dvh] antialiased selection:bg-cyan-400 selection:text-slate-950">
+
+  <div id="toast-container" class="safe-toasts fixed left-1/2 -translate-x-1/2 z-[70] flex flex-col items-center gap-2 w-[92%] max-w-md pointer-events-none"></div>
+
+  <!-- ==================== SCHERMATA 1: IMPOSTAZIONI ==================== -->
+  <main id="setup-screen" class="flex-1 flex flex-col w-full max-w-md mx-auto px-4 py-5">
+    <div class="flex items-center justify-between mb-1">
+      <button
+        type="button"
+        onclick="goHome()"
+        class="w-8 h-8 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 flex items-center justify-center text-xs border border-slate-700/80 transition-colors active:scale-95"
+        title="Menu dei giochi"
+        aria-label="Menu dei giochi"
+      >
+        <i class="fa-solid fa-house"></i>
+      </button>
+      <button
+        type="button"
+        onclick="openCustomModal()"
+        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-500/15 hover:bg-violet-500/25 border border-violet-400/40 text-violet-200 text-xs font-bold transition-all active:scale-95"
+      >
+        <i class="fa-solid fa-pen-to-square"></i>
+        <span>Le vostre domande (<span id="custom-count">0</span>)</span>
+      </button>
+    </div>
+
+    <div class="text-center mt-1 mb-4">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-cyan-400/10 border border-cyan-400/30 text-cyan-300 text-xs font-bold tracking-widest uppercase mb-2">
+        <i class="fa-solid fa-hand"></i> Il classico da bere
+      </div>
+      <h1 class="font-display text-5xl font-black tracking-tight bg-gradient-to-r from-cyan-300 via-sky-400 to-violet-400 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(34,211,238,0.35)]">
+        HAI MAI?
+      </h1>
+      <p class="text-slate-400 text-sm mt-1">Leggete la domanda ad alta voce: chi l'ha fatto beve!</p>
+    </div>
+
+    <!-- Come si gioca -->
+    <div class="glass-panel rounded-3xl px-4 py-3.5 mb-3">
+      <ol class="space-y-1.5 text-sm text-slate-300">
+        <li class="flex gap-2.5"><span class="w-5 h-5 shrink-0 rounded-md bg-cyan-400/15 text-cyan-300 text-[11px] font-extrabold flex items-center justify-center mt-0.5">1</span> A turno uno legge la domanda e passa il telefono.</li>
+        <li class="flex gap-2.5"><span class="w-5 h-5 shrink-0 rounded-md bg-cyan-400/15 text-cyan-300 text-[11px] font-extrabold flex items-center justify-center mt-0.5">2</span> Chi l'ha fatto davvero beve 1 sorso.</li>
+        <li class="flex gap-2.5"><span class="w-5 h-5 shrink-0 rounded-md bg-cyan-400/15 text-cyan-300 text-[11px] font-extrabold flex items-center justify-center mt-0.5">3</span> Vietato mentire: chi viene sgamato beve doppio! 😏</li>
+      </ol>
+    </div>
+
+    <!-- Categorie -->
+    <div class="glass-panel rounded-3xl p-4 mb-3">
+      <div class="flex items-center justify-between mb-2.5">
+        <h2 class="text-base font-bold text-slate-200 flex items-center gap-2">
+          <i class="fa-solid fa-layer-group text-cyan-300"></i> Categorie
+        </h2>
+        <span id="selected-count-badge" class="text-xs font-bold px-2.5 py-1 rounded-full bg-cyan-400/15 text-cyan-200 border border-cyan-400/30">0 domande</span>
+      </div>
+      <div id="categories-list" class="space-y-2">
+        <!-- Riempito da hai-mai/game.js -->
+      </div>
+    </div>
+
+    <!-- Imprevisti -->
+    <label class="glass-panel rounded-3xl p-4 mb-4 flex items-center gap-3 cursor-pointer">
+      <div class="w-10 h-10 rounded-xl bg-yellow-400/15 border border-yellow-400/30 text-yellow-300 flex items-center justify-center text-lg shrink-0">
+        <i class="fa-solid fa-dice"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-bold text-sm text-white">Imprevisti</div>
+        <div class="text-xs text-slate-400 leading-snug">Ogni tanto una domanda cambia le regole: al contrario, sorsi doppi, racconta…</div>
+      </div>
+      <span class="switch" style="--switch-on: #facc15">
+        <input type="checkbox" id="twists-toggle" onchange="toggleTwists(this.checked)" aria-label="Imprevisti" />
+        <span class="track"></span>
+      </span>
+    </label>
+
+    <!-- Pulsanti sempre visibili in basso, anche quando la pagina scorre -->
+    <div class="sticky z-20 mt-auto -mx-4 px-4 pt-6 pb-1 space-y-3" style="bottom: var(--safe-bottom); background: linear-gradient(to top, #07080d 72%, rgba(7, 8, 13, 0));">
+      <button
+        id="resume-btn"
+        type="button"
+        onclick="resumeHaiMai()"
+        class="hidden w-full py-3.5 rounded-2xl font-display font-bold text-base tracking-wide text-emerald-200 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/50 shadow-[0_0_20px_rgba(74,222,128,0.18)] transition-all flex items-center justify-center gap-2.5 active:scale-[0.98]"
+      >
+        <i class="fa-solid fa-play"></i>
+        <span id="resume-label">RIPRENDI</span>
+      </button>
+      <button
+        id="start-btn"
+        type="button"
+        onclick="startHaiMai()"
+        class="w-full py-4 rounded-2xl font-display font-bold text-lg tracking-wide text-white shadow-xl transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed btn-neon-cyan active:scale-[0.98]"
+      >
+        <span id="start-label">INIZIA</span>
+        <i class="fa-solid fa-champagne-glasses"></i>
+      </button>
+    </div>
+  </main>
+
+  <!-- ==================== SCHERMATA 2: GIOCO ==================== -->
+  <main id="game-screen" class="hidden flex-1 flex flex-col justify-between w-full max-w-md mx-auto px-3.5 py-3">
+    <header class="flex items-center justify-between glass-panel rounded-2xl px-3 py-2.5">
+      <button
+        type="button"
+        onclick="showSetupScreen()"
+        class="h-9 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 flex items-center gap-2 text-xs font-bold border border-slate-700/80 transition-colors active:scale-95"
+        aria-label="Impostazioni"
+      >
+        <i class="fa-solid fa-chevron-left"></i>
+        <span>Categorie</span>
+      </button>
+      <div class="text-center">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-tight">Domanda</div>
+        <div id="hm-counter" class="font-display font-bold text-base text-white leading-tight">1 / 1</div>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button
+          type="button"
+          onclick="openCustomModal()"
+          class="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-violet-950/70 hover:text-violet-200 text-slate-300 flex items-center justify-center text-xs border border-slate-700/80 transition-colors"
+          title="Le vostre domande"
+          aria-label="Le vostre domande"
+        >
+          <i class="fa-solid fa-pen-to-square"></i>
+        </button>
+        <button
+          type="button"
+          onclick="toggleHaiMaiFullscreen()"
+          class="fullscreen-toggle-btn w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs border border-slate-700/80 transition-colors"
+          title="Schermo intero"
+          aria-label="Schermo intero"
+        >
+          <i class="fa-solid fa-expand"></i>
+        </button>
+      </div>
+    </header>
+
+    <section class="flex-1 flex flex-col justify-center my-3 game-card-wrapper">
+      <div id="hm-card" onclick="nextQuestion()" class="game-card rounded-3xl p-5 sm:p-6 flex flex-col justify-between min-h-[400px] cursor-pointer">
+        <div class="relative z-10 flex items-center justify-between gap-2">
+          <div id="hm-category-badge" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider border">
+            <span id="hm-category-emoji">🍹</span>
+            <span id="hm-category-name">Categoria</span>
+          </div>
+          <div class="px-3 py-1 rounded-full bg-slate-900/90 border border-slate-700 text-xs font-extrabold text-slate-200 flex items-center gap-1.5">
+            <i class="fa-solid fa-beer-mug-empty text-amber-400"></i>
+            <span id="hm-sips">1 Sorso</span>
+          </div>
+        </div>
+
+        <div class="relative z-10 my-auto py-6 text-center">
+          <p id="hm-question" class="question-text font-display text-[1.7rem] leading-snug sm:text-3xl font-extrabold text-white tracking-tight">
+            Hai mai…?
+          </p>
+          <p id="hm-rule" class="text-slate-400 text-sm font-semibold mt-4">Chi l'ha fatto beve 1 sorso.</p>
+        </div>
+
+        <div class="relative z-10 space-y-3">
+          <div id="hm-twist" class="hidden rounded-2xl border border-yellow-400/60 bg-yellow-400/10 shadow-[0_0_20px_rgba(250,204,21,0.2)] px-4 py-3 flex items-start gap-3 animate-pop-in">
+            <div class="w-9 h-9 rounded-xl bg-yellow-400 text-slate-950 flex items-center justify-center shrink-0">
+              <i id="hm-twist-icon" class="fa-solid fa-dice"></i>
+            </div>
+            <div class="min-w-0">
+              <div class="text-[10px] font-extrabold uppercase tracking-wider text-yellow-300">Imprevisto</div>
+              <div id="hm-twist-title" class="font-display font-bold text-white text-base leading-tight">Titolo</div>
+              <div id="hm-twist-rule" class="text-sm text-yellow-100/90 leading-snug mt-0.5">Regola</div>
+            </div>
+          </div>
+          <div class="text-center text-[11px] font-semibold text-slate-500 pt-1 border-t border-white/10">
+            <i class="fa-solid fa-hand-pointer mr-1"></i> Tocca la carta per la prossima domanda
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="pt-1 pb-2 flex gap-2.5">
+      <button
+        id="hm-prev-btn"
+        type="button"
+        onclick="previousQuestion()"
+        class="w-16 shrink-0 rounded-2xl bg-slate-900/90 border border-slate-700 text-slate-300 hover:bg-slate-800 flex items-center justify-center text-lg active:scale-95 transition-all disabled:opacity-30"
+        aria-label="Domanda precedente"
+      >
+        <i class="fa-solid fa-backward-step"></i>
+      </button>
+      <button
+        type="button"
+        onclick="nextQuestion()"
+        class="flex-1 py-4 rounded-2xl font-display font-extrabold text-lg tracking-wide text-white shadow-xl btn-neon-cyan active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+      >
+        <span>PROSSIMA DOMANDA</span>
+        <i class="fa-solid fa-forward-step text-base"></i>
+      </button>
+    </footer>
+  </main>
+
+  <!-- ==================== FINESTRA: LE VOSTRE DOMANDE ==================== -->
+  <div id="custom-modal" class="safe-modal fixed inset-0 z-50 hidden flex items-center justify-center bg-black/85 backdrop-blur-md">
+    <div class="glass-panel rounded-3xl p-4 sm:p-5 w-full max-w-lg border border-violet-400/40 shadow-[0_0_40px_rgba(167,139,250,0.22)] flex flex-col max-h-full animate-pop-in">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+        <div>
+          <h3 class="font-display text-lg font-extrabold text-white flex items-center gap-2">
+            <span>✍️</span> Le vostre domande
+          </h3>
+          <p class="text-[11px] text-slate-400">Salvate sul telefono • entrano nel gioco con la categoria "Le vostre"</p>
+        </div>
+        <button type="button" onclick="closeCustomModal()" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center" aria-label="Chiudi">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="custom-form" onsubmit="handleAddCustomQuestion(event)" class="py-3 space-y-2 shrink-0">
+        <textarea
+          id="custom-input"
+          rows="2"
+          maxlength="160"
+          placeholder="Hai mai…"
+          class="w-full bg-slate-900 text-white text-sm rounded-xl p-3.5 border border-slate-700 focus:outline-none focus:border-violet-400 leading-relaxed resize-none"
+        ></textarea>
+        <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-400 hover:to-fuchsia-400 text-white font-display font-extrabold text-sm shadow-lg shadow-violet-500/25 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-plus"></i> Aggiungi domanda
+        </button>
+      </form>
+
+      <div id="custom-list" class="flex-1 overflow-y-auto space-y-2 pr-1 min-h-0">
+        <!-- Riempito da hai-mai/game.js -->
+      </div>
+    </div>
+  </div>
+
+  <script src="./common.js"></script>
+  <script src="./hai-mai/questions.js"></script>
+  <script src="./hai-mai/game.js"></script>
+</body>
+</html>

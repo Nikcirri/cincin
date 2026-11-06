@@ -1,0 +1,325 @@
+/* Stile comune a tutte le pagine di Cin Cin.
+   Tutto è incluso nell'app (niente internet): Tailwind, caratteri e icone. */
+
+/* Caratteri: Outfit per i testi, Space Grotesk per i titoli (come nel Neon Sips di Gemini). */
+@import '@fontsource/outfit/latin-400.css';
+@import '@fontsource/outfit/latin-500.css';
+@import '@fontsource/outfit/latin-600.css';
+@import '@fontsource/outfit/latin-700.css';
+@import '@fontsource/outfit/latin-800.css';
+@import '@fontsource/outfit/latin-900.css';
+@import '@fontsource/space-grotesk/latin-600.css';
+@import '@fontsource/space-grotesk/latin-700.css';
+
+/* Icone Font Awesome (solo quelle "solid", le uniche usate). */
+@import '@fortawesome/fontawesome-free/css/fontawesome.min.css';
+@import '@fortawesome/fontawesome-free/css/solid.min.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --neon-color: #a855f7;
+  --neon-glow: rgba(168, 85, 247, 0.45);
+  --neon-bg: rgba(168, 85, 247, 0.1);
+
+  /* Spazi di sicurezza per notch e barre di sistema (valori dati dall'app Android) */
+  --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  --safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea,
+select {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+html {
+  background-color: #07080d;
+}
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background-color: #07080d;
+  color: #f8fafc;
+  overflow-x: hidden;
+  min-height: 100dvh;
+  background-image:
+    radial-gradient(circle at 15% 15%, rgba(168, 85, 247, 0.14) 0%, transparent 40%),
+    radial-gradient(circle at 85% 80%, rgba(236, 72, 153, 0.12) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.06) 0%, transparent 60%);
+  background-attachment: fixed;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  overscroll-behavior: none;
+}
+
+.font-display {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Finestre a tutto schermo: restano fuori da notch e barra di navigazione */
+.safe-modal {
+  padding-top: calc(1rem + var(--safe-top));
+  padding-bottom: calc(1rem + var(--safe-bottom));
+  padding-left: calc(1rem + var(--safe-left));
+  padding-right: calc(1rem + var(--safe-right));
+}
+
+.safe-toasts {
+  top: calc(1rem + var(--safe-top));
+}
+
+/* Barra di scorrimento sottile */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+/* Pannelli "vetro" */
+.glass-panel {
+  background: rgba(15, 20, 35, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Pulsante principale con gradiente neon che si muove */
+.btn-neon-main {
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 4s ease infinite;
+  box-shadow: 0 8px 25px -4px rgba(236, 72, 153, 0.55);
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Carte da gioco con bordo neon del colore della categoria */
+.game-card-wrapper {
+  perspective: 1200px;
+}
+
+.game-card {
+  background: linear-gradient(160deg, rgba(19, 22, 36, 0.95) 0%, rgba(11, 13, 22, 0.98) 100%);
+  border: 2px solid var(--neon-color);
+  box-shadow:
+    0 0 25px var(--neon-glow),
+    inset 0 0 25px var(--neon-bg);
+  transition: border-color 0.35s ease, box-shadow 0.35s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+  transform-style: preserve-3d;
+  position: relative;
+  overflow: hidden;
+}
+
+.game-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, var(--neon-bg) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes cardFlipIn {
+  0% {
+    opacity: 0;
+    transform: rotateY(-85deg) scale(0.88) translateY(15px);
+  }
+  60% {
+    opacity: 1;
+    transform: rotateY(8deg) scale(1.02) translateY(-3px);
+  }
+  100% {
+    opacity: 1;
+    transform: rotateY(0deg) scale(1) translateY(0);
+  }
+}
+
+@keyframes cardFlipOut {
+  0% {
+    opacity: 1;
+    transform: rotateY(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotateY(75deg) scale(0.9) translateX(-20px);
+  }
+}
+
+@keyframes cardFlipBackIn {
+  0% {
+    opacity: 0;
+    transform: rotateY(85deg) scale(0.88) translateY(15px);
+  }
+  100% {
+    opacity: 1;
+    transform: rotateY(0deg) scale(1) translateY(0);
+  }
+}
+
+.animate-card-in {
+  animation: cardFlipIn 0.48s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-card-out {
+  animation: cardFlipOut 0.22s ease-in forwards;
+}
+
+.animate-card-back-in {
+  animation: cardFlipBackIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes popIn {
+  0% { opacity: 0; transform: scale(0.92) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.animate-pop-in {
+  animation: popIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Timer critico che pulsa */
+@keyframes timerUrgent {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+.timer-urgent {
+  animation: timerUrgent 0.35s infinite;
+}
+
+/* Nomi dei giocatori evidenziati nel testo delle carte */
+.player-highlight-1 {
+  color: #fff;
+  background: var(--neon-color);
+  padding: 1px 8px;
+  border-radius: 6px;
+  font-weight: 800;
+  display: inline-block;
+  box-shadow: 0 2px 10px var(--neon-glow);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  margin: 0 1px;
+}
+
+.player-highlight-2 {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--neon-color);
+  padding: 0 8px;
+  border-radius: 6px;
+  font-weight: 800;
+  display: inline-block;
+  margin: 0 1px;
+}
+
+/* Menu iniziale: carte dei giochi */
+.home-game-card {
+  position: relative;
+  overflow: hidden;
+  border: 1.5px solid var(--card-color);
+  background: linear-gradient(160deg, rgba(19, 22, 36, 0.92) 0%, rgba(11, 13, 22, 0.97) 100%);
+  box-shadow: 0 0 22px var(--card-glow), inset 0 0 22px var(--card-soft);
+  transition: transform 0.15s ease, box-shadow 0.25s ease;
+}
+
+.home-game-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 0 34px var(--card-glow), inset 0 0 28px var(--card-soft);
+}
+
+.home-game-card::after {
+  content: '';
+  position: absolute;
+  right: -40px;
+  top: -40px;
+  width: 160px;
+  height: 160px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, var(--card-soft) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.neon-title {
+  text-shadow: 0 0 18px rgba(217, 70, 239, 0.35);
+}
+
+/* Interruttore on/off */
+.switch {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  flex-shrink: 0;
+}
+.switch input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+.switch .track {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.switch .track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #94a3b8;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+.switch input:checked + .track {
+  background: var(--switch-on, #d946ef);
+  border-color: transparent;
+}
+.switch input:checked + .track::after {
+  transform: translateX(20px);
+  background: #fff;
+}
+
+/* Pulsante principale di Hai Mai? (gradiente ciano → viola) */
+.btn-neon-cyan {
+  background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 50%, #8b5cf6 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 4s ease infinite;
+  box-shadow: 0 8px 25px -4px rgba(34, 211, 238, 0.45);
+}
+
+/* Testo della domanda: va a capo bene anche con parole lunghe */
+.question-text {
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  text-wrap: balance;
+}

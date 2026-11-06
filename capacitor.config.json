@@ -1,0 +1,16 @@
+{
+  "appId": "com.nikcirri.cincin",
+  "appName": "Cin Cin",
+  "webDir": "dist",
+  "backgroundColor": "#07080D",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover",
+      "style": "DARK"
+    }
+  }
+}
