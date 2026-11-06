@@ -45,7 +45,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Tasto Indietro di Android (chiamato da src/native.js): true = gestito qui.
 window.handleAndroidBack = function handleAndroidBack() {
-  if (!document.getElementById('info-modal').classList.contains('hidden')) {
+  if (isModalOpen('info-modal')) {
     closeInfoModal();
     return true;
   }
@@ -68,6 +68,7 @@ function renderGamesList() {
     return `
       <a
         href="${g.href}"
+        data-nav
         class="home-game-card block rounded-3xl p-5 animate-pop-in"
         style="--card-color: ${g.color}; --card-glow: ${g.glow}; --card-soft: ${g.soft}; animation-delay: ${idx * 70}ms"
         data-game="${g.id}"
@@ -177,13 +178,28 @@ function downloadUpdate() {
 }
 
 function openInfoModal() {
+  playSound('tap');
   document.getElementById('info-version').textContent = `Versione ${getAppVersion()}`;
+  document.getElementById('setting-sound').checked = appSettings().sound;
+  document.getElementById('setting-haptics').checked = appSettings().haptics;
   renderInfoUpdateStatus();
-  document.getElementById('info-modal').classList.remove('hidden');
+  openModal('info-modal');
 }
 
 function closeInfoModal() {
-  document.getElementById('info-modal').classList.add('hidden');
+  closeModal('info-modal');
+}
+
+function setSoundFromSwitch(on) {
+  setAppSetting('sound', on);
+  renderSoundButtons();
+  playSound('tap');
+}
+
+function setHapticsFromSwitch(on) {
+  setAppSetting('haptics', on);
+  vibrate('short');
+  playSound('tap');
 }
 
 function renderInfoUpdateStatus(message) {

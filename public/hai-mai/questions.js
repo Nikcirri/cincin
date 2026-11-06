@@ -236,7 +236,6 @@ const HAI_MAI_TWISTS = [
 
 const HAI_MAI_DEFAULT_RULE = 'Chi l\'ha fatto beve 1 sorso.';
 const HAI_MAI_DEFAULT_SIPS = '1 Sorso';
-const HAI_MAI_TWIST_CHANCE = 0.15;
 const HAI_MAI_MAX_CUSTOM_LENGTH = 160;
 
 /* =========================================================================
@@ -310,15 +309,11 @@ function buildHaiMaiOrder(questions, categoriesOn, random) {
 }
 
 /**
- * Sceglie se la prossima domanda ha un imprevisto.
+ * Sceglie se la prossima domanda ha un imprevisto (stessa probabilità di Neon Sips, vedi common.js).
  * Mai due imprevisti di fila; random() si può passare per i test.
  */
 function pickTwist(enabled, previousTwistId, random) {
-  const rnd = typeof random === 'function' ? random : Math.random;
-  if (!enabled || previousTwistId) return null;
-  if (rnd() >= HAI_MAI_TWIST_CHANCE) return null;
-  const idx = Math.floor(rnd() * HAI_MAI_TWISTS.length);
-  return HAI_MAI_TWISTS[Math.min(idx, HAI_MAI_TWISTS.length - 1)].id;
+  return pickFromTwists(HAI_MAI_TWISTS, enabled, previousTwistId, random);
 }
 
 function findTwist(id) {

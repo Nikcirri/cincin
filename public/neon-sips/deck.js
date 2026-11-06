@@ -615,3 +615,81 @@ const MASTER_DECK = [
     duration: 6
   }
 ];
+
+/* =========================================================================
+   IMPREVISTI DI NEON SIPS
+   Ogni tanto (come in Hai Mai?) una carta arriva con un imprevisto.
+   Segnaposto: {p1} = giocatore di turno, {p2} = avversario, {next} = chi salta il turno.
+   effect: cosa cambia nella partita quando esce ('reverse', 'skip', 'shield'); senza effect è solo una regola da leggere.
+   exclude: categorie di carte su cui non ha senso (es. sulle carte Scudo nessuno beve).
+   minPlayers: giocatori necessari perché abbia senso.
+========================================================================= */
+const NEON_TWISTS = [
+  {
+    id: 'doppio',
+    icon: 'fa-angles-up',
+    title: 'Sorsi doppi!',
+    rule: 'Chi beve per questa carta beve il doppio.',
+    exclude: ['SCUDO'],
+    minPlayers: 2
+  },
+  {
+    id: 'brindisi',
+    icon: 'fa-champagne-glasses',
+    title: 'Brindisi collettivo',
+    rule: 'Finita la carta, cin cin: tutto il tavolo beve 1 sorso.',
+    exclude: [],
+    minPlayers: 2
+  },
+  {
+    id: 'compagno',
+    icon: 'fa-user-group',
+    title: 'Compagno di bevute',
+    rule: 'Chi beve per questa carta sceglie qualcuno che beve insieme a lui.',
+    exclude: ['SCUDO'],
+    minPlayers: 3
+  },
+  {
+    id: 'inverti',
+    icon: 'fa-rotate-left',
+    title: 'Giro al contrario!',
+    rule: 'Da adesso i turni girano nell\'altro verso.',
+    effect: 'reverse',
+    exclude: [],
+    minPlayers: 3
+  },
+  {
+    id: 'salta',
+    icon: 'fa-forward',
+    title: 'Salta il turno',
+    rule: '{next} salta il suo prossimo turno.',
+    effect: 'skip',
+    exclude: [],
+    minPlayers: 3
+  },
+  {
+    id: 'scudo',
+    icon: 'fa-shield-halved',
+    title: 'Scudo regalo',
+    rule: '{p1} riceve subito uno scudo gratis!',
+    effect: 'shield',
+    exclude: ['SCUDO'],
+    minPlayers: 2
+  }
+];
+
+function findNeonTwist(id) {
+  return NEON_TWISTS.find(t => t.id === id) || null;
+}
+
+/** Imprevisto per la carta appena pescata (o null). Usa pickFromTwists di common.js. */
+function pickNeonTwist(enabled, previousTwistId, category, playersCount, random) {
+  return pickFromTwists(NEON_TWISTS, enabled, previousTwistId, random,
+    t => !t.exclude.includes(category) && playersCount >= t.minPlayers);
+}
+
+/** Indice del prossimo giocatore nel verso del giro (1 o -1). */
+function nextTurnIndex(index, dir, count) {
+  if (count <= 0) return 0;
+  return (((index + dir) % count) + count) % count;
+}

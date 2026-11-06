@@ -18,6 +18,7 @@ let hmQuestionsById = new Map();
 let hmCounts = {};
 let hmMatch = null;           // { active, order: [id], index, twists: { [index]: twistId|null }, round }
 let hmAnimating = false;
+let hmShownId = null;         // domanda che si vede adesso sulla carta
 
 /* ---------- Avvio ---------- */
 window.addEventListener('DOMContentLoaded', () => {
@@ -27,10 +28,6 @@ window.addEventListener('DOMContentLoaded', () => {
   refreshQuestions();
   hmMatch = loadMatch();
   renderSetup();
-
-  const app = nativeApp();
-  if (app && app.isNative && app.isFullscreen) setHaiMaiFullscreenIcon(app.isFullscreen());
-  document.addEventListener('fullscreenchange', () => setHaiMaiFullscreenIcon(!!document.fullscreenElement));
 
   // Invio sulla tastiera = aggiungi domanda
   document.getElementById('custom-input').addEventListener('keydown', e => {
@@ -43,16 +40,20 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Tasto Indietro di Android (chiamato da src/native.js): true = gestito qui.
 window.handleAndroidBack = function handleAndroidBack() {
-  if (!document.getElementById('custom-modal').classList.contains('hidden')) {
+  if (isModalOpen('custom-modal')) {
     closeCustomModal();
     return true;
   }
-  if (!document.getElementById('game-screen').classList.contains('hidden')) {
+  if (isGameScreenVisible()) {
     showSetupScreen();
     return true;
   }
   return false;
 };
+
+function isGameScreenVisible() {
+  return !document.getElementById('game-screen').classList.contains('hidden');
+}
 
 function refreshQuestions() {
   const all = allHaiMaiQuestions(hmCustom);
@@ -123,7 +124,7 @@ function renderSetup() {
     .map(c => {
       const on = !!hmSettings.categories[c.id];
       return `
-        <label class="flex items-center gap-3 p-2.5 rounded-2xl border transition-colors cursor-pointer ${on ? 'bg-slate-900/80 border-slate-700' : 'bg-slate-950/40 border-slate-800/80 opacity-70'}">
+        <label class="toggle-row ${on ? 'bg-slate-900/80 border-slate-700' : 'bg-slate-950/40 border-slate-800/80 opacity-70'}">
           <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 border" style="background: ${c.bgSoft}; border-color: ${c.glow}">${c.emoji}</div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
@@ -158,6 +159,7 @@ function renderSetup() {
 
 function toggleCategory(id, on) {
   hmSettings.categories[id] = !!on;
+  playSound('tap');
   saveSettings();
   if (hmMatch) rebuildRemaining();
   renderSetup();
@@ -165,6 +167,7 @@ function toggleCategory(id, on) {
 
 function toggleTwists(on) {
   hmSettings.twists = !!on;
+  playSound('tap');
   saveSettings();
   if (hmMatch) {
     // Gli imprevisti già usciti restano, quelli futuri seguono la nuova scelta
@@ -177,15 +180,22 @@ function toggleTwists(on) {
 }
 
 function showSetupScreen() {
+  if (isGameScreenVisible()) playSound('back');
   document.getElementById('game-screen').classList.add('hidden');
-  document.getElementById('setup-screen').classList.remove('hidden');
+  showWithAnimation('setup-screen');
   renderSetup();
-  window.scrollTo(0, 0);
 }
 
 function showGameScreen() {
   document.getElementById('setup-screen').classList.add('hidden');
-  document.getElementById('game-screen').classList.remove('hidden');
+  showWithAnimation('game-screen');
+}
+
+function showWithAnimation(id) {
+  const el = document.getElementById(id);
+  el.classList.remove('hidden', 'animate-pop-in');
+  void el.offsetWidth;
+  el.classList.add('animate-pop-in');
   window.scrollTo(0, 0);
 }
 
@@ -201,12 +211,16 @@ function startHaiMai() {
   hmMatch = { active: true, order, index: 0, twists: {}, round: 1 };
   ensureTwist(0);
   saveMatch();
+  playSound('start');
+  vibrate('short');
   showGameScreen();
   renderQuestion('first');
 }
 
 function resumeHaiMai() {
   if (!hmMatch) return;
+  playSound('start');
+  vibrate('short');
   showGameScreen();
   ensureTwist(hmMatch.index);
   renderQuestion('first');
@@ -253,13 +267,17 @@ function previousQuestion() {
   renderQuestion('back');
 }
 
+const HM_CARD_ANIMATIONS = ['animate-card-out', 'animate-card-in', 'animate-card-back-out', 'animate-card-back-in'];
+
 function renderQuestion(direction) {
   const card = document.getElementById('hm-card');
+  const back = direction === 'back';
   const apply = () => {
     fillCard();
-    card.classList.remove('animate-card-out', 'animate-card-in', 'animate-card-back-in');
+    card.classList.remove(...HM_CARD_ANIMATIONS);
     void card.offsetWidth; // fa ripartire l'animazione
-    card.classList.add(direction === 'back' ? 'animate-card-back-in' : 'animate-card-in');
+    card.classList.add(back ? 'animate-card-back-in' : 'animate-card-in');
+    announceTwist();
   };
 
   if (direction === 'first') {
@@ -267,13 +285,24 @@ function renderQuestion(direction) {
     return;
   }
   hmAnimating = true;
+  playSound(back ? 'back' : 'flip');
   vibrate('short');
-  card.classList.remove('animate-card-in', 'animate-card-back-in');
-  card.classList.add('animate-card-out');
+  card.classList.remove(...HM_CARD_ANIMATIONS);
+  void card.offsetWidth;
+  card.classList.add(back ? 'animate-card-back-out' : 'animate-card-out');
   setTimeout(() => {
     apply();
     hmAnimating = false;
   }, 200);
+}
+
+/** Suono dell'imprevisto, un attimo dopo la carta (insieme all'animazione del riquadro). */
+function announceTwist() {
+  if (!hmMatch || !findTwist(hmMatch.twists[hmMatch.index])) return;
+  setTimeout(() => {
+    playSound('twist');
+    vibrate('short');
+  }, 280);
 }
 
 function fillCard() {
@@ -292,6 +321,7 @@ function fillCard() {
     q = hmQuestionsById.get(hmMatch.order[hmMatch.index]);
   }
 
+  hmShownId = q.id;
   const cat = HAI_MAI_CATEGORIES[q.category] || HAI_MAI_CATEGORIES.TRANQUILLE;
   const root = document.documentElement.style;
   root.setProperty('--neon-color', cat.color);
@@ -309,47 +339,19 @@ function fillCard() {
 
   const twist = findTwist(hmMatch.twists[hmMatch.index]);
   const twistBox = document.getElementById('hm-twist');
+  document.getElementById('hm-sips-badge').classList.toggle('sips-badge-twist', !!twist);
   if (twist) {
-    document.getElementById('hm-twist-icon').className = `fa-solid ${twist.icon}`;
-    document.getElementById('hm-twist-title').textContent = twist.title;
-    document.getElementById('hm-twist-rule').textContent = twist.rule;
+    twistBox.innerHTML = twistBoxHtml(twist, escapeHtml(twist.rule));
     document.getElementById('hm-sips').textContent = twist.sips;
     document.getElementById('hm-rule').classList.add('hidden');
     twistBox.classList.remove('hidden');
   } else {
+    twistBox.innerHTML = '';
     document.getElementById('hm-sips').textContent = HAI_MAI_DEFAULT_SIPS;
     document.getElementById('hm-rule').textContent = HAI_MAI_DEFAULT_RULE;
     document.getElementById('hm-rule').classList.remove('hidden');
     twistBox.classList.add('hidden');
   }
-}
-
-/* ---------- Schermo intero ---------- */
-async function toggleHaiMaiFullscreen() {
-  const app = nativeApp();
-  if (app && app.isNative && app.toggleFullscreen) {
-    setHaiMaiFullscreenIcon(await app.toggleFullscreen());
-    return;
-  }
-  try {
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-    } else if (document.documentElement.requestFullscreen) {
-      await document.documentElement.requestFullscreen();
-    } else {
-      showToast('Schermo intero non supportato su questo browser', 'warning');
-    }
-  } catch (e) {
-    showToast('Schermo intero non supportato su questo browser', 'warning');
-  }
-}
-
-function setHaiMaiFullscreenIcon(isFull) {
-  document.querySelectorAll('.fullscreen-toggle-btn').forEach(btn => {
-    btn.innerHTML = isFull
-      ? '<i class="fa-solid fa-compress text-cyan-300"></i>'
-      : '<i class="fa-solid fa-expand"></i>';
-  });
 }
 
 /* =========================================================================
@@ -359,13 +361,14 @@ function openCustomModal() {
   const input = document.getElementById('custom-input');
   if (!input.value.trim()) input.value = 'Hai mai ';
   renderCustomList();
-  document.getElementById('custom-modal').classList.remove('hidden');
+  playSound('tap');
+  openModal('custom-modal');
 }
 
 function closeCustomModal() {
-  document.getElementById('custom-modal').classList.add('hidden');
-  // Se si stava giocando, la carta si aggiorna (la domanda potrebbe essere stata cancellata)
-  if (hmMatch && !document.getElementById('game-screen').classList.contains('hidden')) {
+  closeModal('custom-modal');
+  // Se si stava giocando e la domanda sul tavolo è stata cancellata, la carta si aggiorna
+  if (hmMatch && isGameScreenVisible() && hmShownId !== hmMatch.order[hmMatch.index]) {
     fillCard();
   }
   renderSetup();
@@ -397,8 +400,9 @@ function handleAddCustomQuestion(e) {
   }
   if (hmMatch) rebuildRemaining();
   input.value = 'Hai mai ';
-  renderCustomList();
+  renderCustomList(hmCustom[0].id);
   renderSetup();
+  playSound('success');
   showToast('✍️ Domanda aggiunta!', 'success');
 }
 
@@ -424,10 +428,12 @@ function deleteCustomQuestion(id) {
   }
   renderCustomList();
   renderSetup();
+  playSound('remove');
   showToast('🗑️ Domanda cancellata', 'info');
 }
 
-function renderCustomList() {
+/** newId: la domanda appena aggiunta entra con una piccola animazione. */
+function renderCustomList(newId) {
   const list = document.getElementById('custom-list');
   if (hmCustom.length === 0) {
     list.innerHTML = `
@@ -439,7 +445,7 @@ function renderCustomList() {
     return;
   }
   list.innerHTML = hmCustom.map(q => `
-    <div class="flex items-start gap-2 p-3 rounded-2xl bg-slate-900/85 border border-slate-800/90">
+    <div class="flex items-start gap-2 p-3 rounded-2xl bg-slate-900/85 border border-slate-800/90 ${q.id === newId ? 'animate-row-in' : ''}">
       <p class="flex-1 text-sm text-slate-100 leading-relaxed">${escapeHtml(q.text)}</p>
       <button
         type="button"

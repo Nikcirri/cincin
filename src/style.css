@@ -1,5 +1,7 @@
 /* Stile comune a tutte le pagine di Cin Cin.
-   Tutto è incluso nell'app (niente internet): Tailwind, caratteri e icone. */
+   Tutto è incluso nell'app (niente internet): Tailwind, caratteri e icone.
+   I pezzi ripetuti in tutti i giochi (pulsanti, barre, finestre, imprevisti) sono classi qui sotto:
+   così menu e giochi restano sempre uguali tra loro. */
 
 /* Caratteri: Outfit per i testi, Space Grotesk per i titoli (come nel Neon Sips di Gemini). */
 @import '@fontsource/outfit/latin-400.css';
@@ -23,6 +25,7 @@
   --neon-color: #a855f7;
   --neon-glow: rgba(168, 85, 247, 0.45);
   --neon-bg: rgba(168, 85, 247, 0.1);
+  --bg: #07080d;
 
   /* Spazi di sicurezza per notch e barre di sistema (valori dati dall'app Android) */
   --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
@@ -45,27 +48,136 @@ select {
   -webkit-user-select: text;
 }
 
+button,
+a,
+label {
+  touch-action: manipulation;
+}
+
 html {
-  background-color: #07080d;
+  background-color: var(--bg);
 }
 
 body {
   font-family: 'Outfit', sans-serif;
-  background-color: #07080d;
+  /* Trasparente: il colore di fondo è su <html>, così le luci neon qui sotto si vedono */
+  background-color: transparent;
   color: #f8fafc;
   overflow-x: hidden;
   min-height: 100dvh;
-  background-image:
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  /* Entrata morbida di ogni pagina (solo opacità: non disturba gli elementi fissi) */
+  animation: pageEnter 0.26s ease-out backwards;
+}
+
+/* Sfondo con le luci neon: disegnato una volta sola e fermo, così lo scorrimento resta fluido */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
     radial-gradient(circle at 15% 15%, rgba(168, 85, 247, 0.14) 0%, transparent 40%),
     radial-gradient(circle at 85% 80%, rgba(236, 72, 153, 0.12) 0%, transparent 40%),
     radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.06) 0%, transparent 60%);
-  background-attachment: fixed;
-  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
-  overscroll-behavior: none;
+}
+
+body.page-leave {
+  animation: pageLeave 0.14s ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes pageEnter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pageLeave {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 .font-display {
   font-family: 'Space Grotesk', sans-serif;
+}
+
+/* ====================== PEZZI COMUNI A TUTTI I GIOCHI ====================== */
+@layer components {
+  /* Pannelli "vetro" (senza sfocatura dello sfondo: molto più leggeri per il telefono) */
+  .glass-panel {
+    background: rgba(15, 20, 35, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* Pulsanti quadrati con icona nelle barre in alto */
+  .icon-btn {
+    @apply w-9 h-9 shrink-0 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 flex items-center justify-center text-sm border border-slate-700/80 transition-all duration-150 active:scale-90;
+  }
+
+  /* Pulsanti con icona e testo nelle barre in alto */
+  .pill-btn {
+    @apply inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-bold border transition-all duration-150 active:scale-95;
+  }
+
+  /* Etichetta piccola sopra il titolo di ogni gioco */
+  .game-kicker {
+    @apply inline-flex items-center gap-2 px-3.5 py-1 rounded-full border text-xs font-bold tracking-widest uppercase mb-2;
+  }
+
+  /* Titolo grande di ogni gioco */
+  .game-title {
+    @apply font-display text-5xl font-black tracking-tight bg-clip-text text-transparent;
+  }
+
+  /* Barra in alto durante la partita */
+  .game-topbar {
+    @apply flex items-center justify-between gap-2 rounded-2xl px-2.5 py-2;
+  }
+
+  /* Pulsante principale in basso (gradiente animato del colore del gioco) */
+  .cta-main {
+    @apply w-full py-4 rounded-2xl font-display font-bold text-lg tracking-wide text-white shadow-xl transition-all duration-200 flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  /* Pulsante "Riprendi la partita" */
+  .cta-resume {
+    @apply w-full py-3.5 rounded-2xl font-display font-bold text-base tracking-wide text-emerald-200 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/50 transition-all flex items-center justify-center gap-2.5 active:scale-[0.98];
+    box-shadow: 0 0 20px rgba(74, 222, 128, 0.18);
+  }
+
+  /* Riga con interruttore (categorie, imprevisti, impostazioni) */
+  .toggle-row {
+    @apply flex items-center gap-3 p-2.5 rounded-2xl border transition-all duration-200 cursor-pointer;
+  }
+
+  /* Riquadro dell'imprevisto: identico in tutti i giochi */
+  .twist-box {
+    @apply rounded-2xl border border-yellow-400/60 bg-yellow-400/10 px-4 py-3 flex items-start gap-3;
+    box-shadow: 0 0 22px rgba(250, 204, 21, 0.22);
+  }
+  .twist-icon {
+    @apply w-9 h-9 rounded-xl bg-yellow-400 text-slate-950 flex items-center justify-center shrink-0;
+    box-shadow: 0 0 14px rgba(250, 204, 21, 0.55);
+  }
+  .twist-label {
+    @apply text-[10px] font-extrabold uppercase tracking-wider text-yellow-300;
+  }
+  .twist-title {
+    @apply font-display font-bold text-white text-base leading-tight;
+  }
+  .twist-rule {
+    @apply text-sm text-yellow-100/90 leading-snug mt-0.5;
+  }
+
+  /* Pulsanti in basso sempre visibili mentre la pagina scorre */
+  .sticky-cta {
+    @apply sticky z-20 mt-auto -mx-4 px-4 pt-6 pb-1 space-y-3;
+    bottom: var(--safe-bottom);
+    background: linear-gradient(to top, var(--bg) 72%, rgba(7, 8, 13, 0));
+  }
 }
 
 /* Finestre a tutto schermo: restano fuori da notch e barra di navigazione */
@@ -76,8 +188,45 @@ body {
   padding-right: calc(1rem + var(--safe-right));
 }
 
+/* Apertura e chiusura delle finestre (gestite da openModal/closeModal in common.js) */
+.modal-enter {
+  animation: overlayIn 0.18s ease-out both;
+}
+.modal-enter > * {
+  animation: popIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.modal-leave {
+  animation: overlayOut 0.16s ease-in both;
+  pointer-events: none;
+}
+.modal-leave > * {
+  animation: popOut 0.16s ease-in both;
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes overlayOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes popOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.96); }
+}
+
 .safe-toasts {
   top: calc(1rem + var(--safe-top));
+}
+
+.toast-enter {
+  animation: toastIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-14px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* Barra di scorrimento sottile */
@@ -93,20 +242,27 @@ body {
   border-radius: 9999px;
 }
 
-/* Pannelli "vetro" */
-.glass-panel {
-  background: rgba(15, 20, 35, 0.78);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-/* Pulsante principale con gradiente neon che si muove */
-.btn-neon-main {
-  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%);
+/* Pulsanti principali con gradiente neon che si muove: uno per gioco, stesso movimento */
+.btn-neon-main,
+.btn-neon-cyan {
   background-size: 200% 200%;
   animation: gradientShift 4s ease infinite;
+}
+
+.btn-neon-main {
+  background-image: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%);
   box-shadow: 0 8px 25px -4px rgba(236, 72, 153, 0.55);
+}
+
+.btn-neon-cyan {
+  background-image: linear-gradient(135deg, #22d3ee 0%, #3b82f6 50%, #8b5cf6 100%);
+  box-shadow: 0 8px 25px -4px rgba(34, 211, 238, 0.45);
+}
+
+.btn-neon-main:disabled,
+.btn-neon-cyan:disabled {
+  animation: none;
+  box-shadow: none;
 }
 
 @keyframes gradientShift {
@@ -126,10 +282,11 @@ body {
   box-shadow:
     0 0 25px var(--neon-glow),
     inset 0 0 25px var(--neon-bg);
-  transition: border-color 0.35s ease, box-shadow 0.35s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+  transition: border-color 0.35s ease, box-shadow 0.35s ease;
   transform-style: preserve-3d;
   position: relative;
   overflow: hidden;
+  will-change: transform, opacity;
 }
 
 .game-card::before {
@@ -142,6 +299,12 @@ body {
   background: radial-gradient(circle at center, var(--neon-bg) 0%, transparent 60%);
   pointer-events: none;
   z-index: 0;
+}
+
+/* Il bollino dei sorsi si illumina di giallo quando c'è un imprevisto */
+.sips-badge-twist {
+  border-color: rgba(250, 204, 21, 0.7) !important;
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.35);
 }
 
 @keyframes cardFlipIn {
@@ -170,10 +333,25 @@ body {
   }
 }
 
+@keyframes cardFlipBackOut {
+  0% {
+    opacity: 1;
+    transform: rotateY(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotateY(-75deg) scale(0.9) translateX(20px);
+  }
+}
+
 @keyframes cardFlipBackIn {
   0% {
     opacity: 0;
     transform: rotateY(85deg) scale(0.88) translateY(15px);
+  }
+  60% {
+    opacity: 1;
+    transform: rotateY(-8deg) scale(1.02) translateY(-3px);
   }
   100% {
     opacity: 1;
@@ -182,15 +360,19 @@ body {
 }
 
 .animate-card-in {
-  animation: cardFlipIn 0.48s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: cardFlipIn 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .animate-card-out {
-  animation: cardFlipOut 0.22s ease-in forwards;
+  animation: cardFlipOut 0.2s ease-in both;
+}
+
+.animate-card-back-out {
+  animation: cardFlipBackOut 0.2s ease-in both;
 }
 
 .animate-card-back-in {
-  animation: cardFlipBackIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: cardFlipBackIn 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes popIn {
@@ -200,6 +382,27 @@ body {
 
 .animate-pop-in {
   animation: popIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* L'imprevisto arriva un attimo dopo la carta, con un piccolo rimbalzo */
+@keyframes twistIn {
+  0% { opacity: 0; transform: scale(0.7) rotate(-3deg); }
+  60% { opacity: 1; transform: scale(1.05) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+.animate-twist-in {
+  animation: twistIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.28s both;
+}
+
+/* Riga nuova in una lista (giocatori, domande) */
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-row-in {
+  animation: rowIn 0.25s ease-out both;
 }
 
 /* Timer critico che pulsa */
@@ -262,10 +465,6 @@ body {
   pointer-events: none;
 }
 
-.neon-title {
-  text-shadow: 0 0 18px rgba(217, 70, 239, 0.35);
-}
-
 /* Interruttore on/off */
 .switch {
   position: relative;
@@ -287,7 +486,7 @@ body {
   border-radius: 9999px;
   background: #1e293b;
   border: 1px solid #334155;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .switch .track::after {
   content: '';
@@ -298,23 +497,16 @@ body {
   height: 18px;
   border-radius: 9999px;
   background: #94a3b8;
-  transition: transform 0.2s ease, background 0.2s ease;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.2s ease;
 }
 .switch input:checked + .track {
   background: var(--switch-on, #d946ef);
   border-color: transparent;
+  box-shadow: 0 0 12px var(--switch-on, #d946ef);
 }
 .switch input:checked + .track::after {
   transform: translateX(20px);
   background: #fff;
-}
-
-/* Pulsante principale di Hai Mai? (gradiente ciano → viola) */
-.btn-neon-cyan {
-  background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 50%, #8b5cf6 100%);
-  background-size: 200% 200%;
-  animation: gradientShift 4s ease infinite;
-  box-shadow: 0 8px 25px -4px rgba(34, 211, 238, 0.45);
 }
 
 /* Testo della domanda: va a capo bene anche con parole lunghe */
@@ -322,4 +514,21 @@ body {
   overflow-wrap: anywhere;
   hyphens: auto;
   text-wrap: balance;
+}
+
+/* Chi ha chiesto meno movimento nelle impostazioni del telefono: animazioni quasi istantanee */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Nelle finestre il pannello è pieno: niente testo della pagina che traspare */
+.safe-modal > .glass-panel {
+  background: rgba(13, 17, 30, 0.98);
 }

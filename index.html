@@ -15,11 +15,14 @@
 
   <main class="flex-1 flex flex-col w-full max-w-md mx-auto px-4 py-5">
     <!-- Barra in alto -->
-    <div class="flex items-center justify-end">
+    <div class="flex items-center justify-end gap-1.5">
+      <button type="button" onclick="toggleSound()" class="sound-toggle-btn icon-btn" aria-label="Suoni">
+        <i class="fa-solid fa-volume-high"></i>
+      </button>
       <button
         type="button"
         onclick="openInfoModal()"
-        class="w-9 h-9 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 flex items-center justify-center text-sm border border-slate-700/80 transition-colors active:scale-95"
+        class="icon-btn"
         title="Informazioni e aggiornamenti"
         aria-label="Informazioni e aggiornamenti"
       >
@@ -29,10 +32,10 @@
 
     <!-- Titolo -->
     <header class="text-center mt-1 mb-6">
-      <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/30 text-fuchsia-400 text-xs font-bold tracking-widest uppercase mb-3">
+      <div class="game-kicker bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-400">
         <i class="fa-solid fa-champagne-glasses"></i> Giochi per bere in compagnia
       </div>
-      <h1 class="font-display text-5xl font-black tracking-tight bg-gradient-to-r from-fuchsia-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(217,70,239,0.35)]">
+      <h1 class="game-title bg-gradient-to-r from-fuchsia-400 via-purple-400 to-cyan-400 drop-shadow-[0_0_20px_rgba(217,70,239,0.35)]">
         CIN CIN
       </h1>
       <p class="text-slate-400 text-sm mt-2">
@@ -78,19 +81,49 @@
   </main>
 
   <!-- ==================== FINESTRA: INFORMAZIONI E AGGIORNAMENTI ==================== -->
-  <div id="info-modal" class="safe-modal fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm" onclick="if (event.target === this) closeInfoModal()">
-    <div class="glass-panel rounded-3xl p-6 w-full max-w-sm border border-purple-500/40 shadow-2xl space-y-4 animate-pop-in">
+  <div id="info-modal" class="safe-modal fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80" onclick="if (event.target === this) closeInfoModal()">
+    <div class="glass-panel rounded-3xl p-6 w-full max-w-sm max-h-full overflow-y-auto border border-purple-500/40 shadow-2xl space-y-4">
       <div class="flex items-center justify-between">
         <h3 class="font-display text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-champagne-glasses text-fuchsia-400"></i> Cin Cin
         </h3>
-        <button type="button" onclick="closeInfoModal()" class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center" aria-label="Chiudi">
+        <button type="button" onclick="closeInfoModal()" class="icon-btn" aria-label="Chiudi">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
       <p class="text-sm text-slate-300 leading-relaxed">
         Giochi per bere in compagnia. Funziona senza internet e tutto resta sul telefono: giocatori, carte e domande personalizzate.
       </p>
+
+      <!-- Impostazioni comuni a tutti i giochi -->
+      <div class="space-y-2">
+        <label class="toggle-row bg-slate-900/80 border-slate-800">
+          <div class="w-9 h-9 rounded-xl bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-300 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-volume-high"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-sm text-white">Suoni</div>
+            <div class="text-xs text-slate-400">Carte, imprevisti, timer</div>
+          </div>
+          <span class="switch" style="--switch-on: #d946ef">
+            <input type="checkbox" id="setting-sound" onchange="setSoundFromSwitch(this.checked)" aria-label="Suoni" />
+            <span class="track"></span>
+          </span>
+        </label>
+        <label class="toggle-row bg-slate-900/80 border-slate-800">
+          <div class="w-9 h-9 rounded-xl bg-cyan-400/15 border border-cyan-400/30 text-cyan-300 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-mobile-screen-button"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-sm text-white">Vibrazione</div>
+            <div class="text-xs text-slate-400">Un piccolo tocco a ogni carta</div>
+          </div>
+          <span class="switch" style="--switch-on: #22d3ee">
+            <input type="checkbox" id="setting-haptics" onchange="setHapticsFromSwitch(this.checked)" aria-label="Vibrazione" />
+            <span class="track"></span>
+          </span>
+        </label>
+      </div>
       <div class="rounded-2xl bg-slate-900/80 border border-slate-800 p-3.5 space-y-1">
         <div id="info-version" class="font-bold text-white text-sm"></div>
         <div id="info-update-status" class="text-xs text-slate-400">Non hai ancora controllato gli aggiornamenti.</div>

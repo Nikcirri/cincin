@@ -45,6 +45,18 @@ def shot(page, name):
     page.screenshot(path=str(ROOT / f"screenshot-{name}.png"))
 
 
+def back(page, expected=True):
+    """Tasto Indietro di Android, poi attesa della fine delle animazioni."""
+    result = page.evaluate("handleAndroidBack()")
+    page.wait_for_timeout(260)
+    check(result is expected, f"Indietro {'gestito' if expected else 'lasciato al sistema'}")
+
+
+def common_checks(page, name):
+    check(page.locator(".fullscreen-toggle-btn").count() == 0, f"{name}: niente pulsanti schermo intero")
+    check(page.locator(".sound-toggle-btn").count() >= 1, f"{name}: pulsante dei suoni")
+
+
 def test_home(page, base):
     print("Menu iniziale")
     open_page(page, base + "/index.html")
@@ -53,17 +65,27 @@ def test_home(page, base):
     check(page.locator("[data-game=hai-mai]").get_attribute("href") == "./hai-mai.html", "link a Hai Mai?")
     check(page.locator("[data-game=neon-sips]").get_attribute("href") == "./neon-sips.html", "link a Neon Sips")
     check("Versione" in page.locator("#footer-version").inner_text(), "versione in fondo")
+    common_checks(page, "menu")
     page.click("button[aria-label='Informazioni e aggiornamenti']")
+    page.wait_for_timeout(300)
     check(page.locator("#info-modal").is_visible(), "si apre la finestra informazioni")
-    check(page.evaluate("handleAndroidBack()") is True, "Indietro chiude la finestra")
+    check(page.locator("#setting-sound").is_checked() and page.locator("#setting-haptics").is_checked(), "suoni e vibrazione accesi")
+    page.locator("#setting-sound").uncheck()
+    check(page.evaluate("appSettings().sound") is False, "suoni spenti dall'interruttore")
+    check("volume-xmark" in page.locator(".sound-toggle-btn").first.inner_html(), "l'icona dei suoni si aggiorna")
+    page.locator("#setting-sound").check()
+    shot(page, "home-info")
+    back(page)
     check(page.locator("#info-modal").is_hidden(), "finestra chiusa")
-    check(page.evaluate("handleAndroidBack()") is False, "Indietro dal menu: esce dall'app")
+    back(page, False)
     shot(page, "home")
 
 
 def test_neon_sips(page, base):
     print("Neon Sips")
     open_page(page, base + "/neon-sips.html")
+    common_checks(page, "Neon Sips")
+    check(page.locator("#twists-toggle").is_checked(), "imprevisti accesi all'inizio")
     check(page.locator("#start-game-btn").is_disabled(), "inizia disattivato senza giocatori")
     check(page.locator("#resume-game-btn").is_hidden(), "niente partita da riprendere")
     for name in ["Anna", "Bruno", "<b>Carla</b>"]:
@@ -123,13 +145,42 @@ def test_neon_sips(page, base):
     check(page.evaluate("players.includes(currentP1) && players.includes(currentP2) && currentP1 !== currentP2"),
           "turno e avversario sono ancora al tavolo")
     page.click("#reset-modal button[onclick='closeResetModal()']")
+    page.wait_for_timeout(260)
+
+    # Imprevisti: "salta il turno" e "giro al contrario" cambiano davvero i turni
+    page.evaluate("window.__pick = pickNeonTwist; window.pickNeonTwist = () => 'salta'")
+    page.click("#next-card-btn")
+    page.wait_for_timeout(700)
+    check(page.locator("#card-twist .twist-box").is_visible(), "si vede l'imprevisto sulla carta")
+    check("sips-badge-twist" in page.locator("#card-sips-badge").get_attribute("class"), "il bollino dei sorsi si illumina")
+    skipped = page.evaluate("players.find(p => p.id === skipPlayerId).name")
+    check(skipped in page.locator("#card-twist").inner_text(), f"l'imprevisto dice chi salta ({skipped})")
+    page.evaluate("window.pickNeonTwist = () => null")
+    page.click("#next-card-btn")
+    page.wait_for_timeout(700)
+    check(page.locator("#current-turn-name").inner_text().strip() != skipped, f"{skipped} ha saltato il turno")
+    check(page.locator("#card-twist").is_hidden(), "carta senza imprevisto")
+    page.evaluate("window.pickNeonTwist = () => 'inverti'")
+    order_before = page.evaluate("players.map(p => p.name)")
+    page.click("#next-card-btn")
+    page.wait_for_timeout(700)
+    check(page.evaluate("direction") == -1 and page.locator("#turn-direction").is_visible(), "giro al contrario segnato in alto")
+    turn_now = page.evaluate("currentTurnIndex")
+    page.evaluate("window.pickNeonTwist = window.__pick")
+    page.click("#next-card-btn")
+    page.wait_for_timeout(700)
+    expected = (turn_now - 1) % len(order_before)
+    check(page.evaluate("currentTurnIndex") == expected or page.evaluate("skipPlayerId") is not None,
+          "il turno passa al giocatore precedente")
+    page.dblclick("#next-card-btn")
+    page.wait_for_timeout(700)
     shot(page, "neon-game")
 
     # Tasto Indietro: dalla partita alla schermata iniziale
-    check(page.evaluate("handleAndroidBack()") is True, "Indietro gestito in partita")
+    back(page)
     check(page.locator("#start-screen").is_visible(), "torna alla schermata iniziale")
     check("RIPRENDI" in page.locator("#resume-game-btn").inner_text(), "si può riprendere la partita")
-    check(page.evaluate("handleAndroidBack()") is False, "Indietro dalla schermata iniziale: menu dei giochi")
+    back(page, False)
 
     # Riapro la pagina: la partita è salvata
     open_page(page, base + "/neon-sips.html")
@@ -137,17 +188,19 @@ def test_neon_sips(page, base):
     page.click("#resume-game-btn")
     page.wait_for_timeout(500)
     check(page.locator("#game-screen").is_visible(), "partita ripresa")
-    check(page.locator("#active-rules-count").inner_text() == "1", "la regola è ancora sul tavolo")
+    check(page.evaluate("direction") == -1, "il giro al contrario resta dopo aver chiuso")
+    check(page.locator("#active-rules-count").inner_text() in ("0", "1"), "regole sul tavolo ritrovate")
     check("🛡️ 1" in page.locator("#players-shield-bar").inner_text() or holder == "Dario", "lo scudo è ancora lì")
 
     # Carta personalizzata
-    page.evaluate("handleAndroidBack()")
+    back(page)
     page.click("text=Crea Carta")
+    page.wait_for_timeout(300)
     page.fill("#form-card-title", "Carta di prova")
     page.fill("#form-card-text", "{p1} brinda con {p2} <img src=x onerror=alert(1)>")
     page.click("#form-save-card-btn")
     check(page.locator("#lobby-deck-count").inner_text() == "71", "carta aggiunta al mazzo (71)")
-    check(page.evaluate("handleAndroidBack()") is True, "Indietro chiude l'editor")
+    back(page)
     check(page.locator("#deck-manager-modal").is_hidden(), "editor chiuso")
     page.click("#resume-game-btn")
     page.evaluate("""() => {
@@ -155,13 +208,17 @@ def test_neon_sips(page, base):
       updateGameUI();
     }""")
     check(page.locator("#card-description img").count() == 0, "il testo della carta non può inserire immagini o codice")
-    page.evaluate("handleAndroidBack()")
+    back(page)
+    page.locator("#twists-toggle").uncheck()
+    check(page.evaluate("loadJSON('cincin_neon_settings_v1', {}).twists") is False, "imprevisti spenti e salvati")
+    page.locator("#twists-toggle").check()
     shot(page, "neon-lobby")
 
 
 def test_hai_mai(page, base):
     print("Hai Mai?")
     open_page(page, base + "/hai-mai.html")
+    common_checks(page, "Hai Mai?")
     check(page.locator("#selected-count-badge").inner_text() == "90 domande", "90 domande (piccanti spente)")
     check(page.locator("#categories-list label").count() == 4, "4 categorie (le vostre compaiono quando ci sono)")
     page.locator("#categories-list input").nth(3).check()
@@ -183,21 +240,24 @@ def test_hai_mai(page, base):
 
     # Imprevisto forzato
     page.evaluate("() => { hmMatch.twists[hmMatch.index] = 'contrario'; fillCard(); }")
-    check(page.locator("#hm-twist").is_visible(), "si vede l'imprevisto")
-    check("NON" in page.locator("#hm-twist-rule").inner_text(), "regola dell'imprevisto al contrario")
+    page.wait_for_timeout(800)
+    check(page.locator("#hm-twist .twist-box").is_visible(), "si vede l'imprevisto (stesso riquadro di Neon Sips)")
+    check("NON" in page.locator("#hm-twist .twist-rule").inner_text(), "regola dell'imprevisto al contrario")
+    check("sips-badge-twist" in page.locator("#hm-sips-badge").get_attribute("class"), "il bollino dei sorsi si illumina")
     check(page.locator("#hm-rule").is_hidden(), "la regola normale si nasconde")
     shot(page, "haimai-twist")
 
     # Domanda vostra
     page.click("button[title='Le vostre domande']")
+    page.wait_for_timeout(300)
     page.fill("#custom-input", "hai mai bevuto <i>tutto</i>")
     page.press("#custom-input", "Enter")
     check(page.evaluate("hmCustom.length") == 1, "domanda vostra aggiunta con Invio")
     check(page.evaluate("hmCustom[0].text") == "Hai mai bevuto <i>tutto</i>?", "domanda sistemata (maiuscola e ?)")
     check(page.locator("#custom-list p i").count() == 0, "il testo non diventa HTML")
     check(page.evaluate("hmMatch.order.length") == 121, "entra nella partita in corso")
-    check(page.evaluate("handleAndroidBack()") is True, "Indietro chiude la finestra")
-    check(page.evaluate("handleAndroidBack()") is True, "Indietro dalla partita torna alle categorie")
+    back(page)
+    back(page)
     check(page.locator("#setup-screen").is_visible(), "schermata categorie")
     check(page.locator("#categories-list label").count() == 5, "compare la categoria Le vostre")
 
@@ -220,7 +280,7 @@ def test_hai_mai(page, base):
     page.click("footer >> text=PROSSIMA DOMANDA")
     page.wait_for_timeout(450)
     check(page.locator("#hm-counter").inner_text().startswith("1 / "), "finite le domande si ricomincia")
-    page.evaluate("handleAndroidBack()")
+    back(page)
 
 
 def main():

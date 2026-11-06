@@ -67,3 +67,21 @@ test('testo sicuro e id unici', () => {
   const ids = new Set(Array.from({ length: 200 }, () => C.makeId('p')));
   assert.equal(ids.size, 200);
 });
+
+test('impostazioni comuni: suoni e vibrazione accesi all\'inizio', () => {
+  const S = loadScripts(['common.js'], ['sanitizeAppSettings']);
+  assert.deepEqual({ ...S.sanitizeAppSettings(null) }, { sound: true, haptics: true });
+  assert.deepEqual({ ...S.sanitizeAppSettings({ sound: false, haptics: 'no' }) }, { sound: false, haptics: true });
+});
+
+test('imprevisti comuni: mai due di fila, solo quelli permessi', () => {
+  const T = loadScripts(['common.js'], ['pickFromTwists', 'TWIST_CHANCE']);
+  const twists = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+  assert.equal(T.pickFromTwists(twists, false, null, () => 0), null, 'spenti');
+  assert.equal(T.pickFromTwists(twists, true, 'a', () => 0), null, 'mai due di fila');
+  assert.equal(T.pickFromTwists(twists, true, null, () => 0.99), null, 'quasi sempre niente');
+  assert.equal(T.pickFromTwists(twists, true, null, () => 0), 'a');
+  assert.equal(T.pickFromTwists(twists, true, null, () => 0, t => t.id === 'c'), 'c', 'filtro');
+  assert.equal(T.pickFromTwists(twists, true, null, () => 0, () => false), null, 'nessuno permesso');
+  assert.ok(T.TWIST_CHANCE > 0 && T.TWIST_CHANCE < 0.5);
+});

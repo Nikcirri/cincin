@@ -60,58 +60,7 @@ function updateDeckCountBadges() {
 }
 
 /*************************************************************************
- * 2C. FULLSCREEN API CONTROLLER
- *************************************************************************/
-async function toggleFullscreen() {
-  // Nell'app Android: nasconde/mostra barra di stato e barra di navigazione.
-  const app = nativeApp();
-  if (app && app.isNative && app.toggleFullscreen) {
-    const isFull = await app.toggleFullscreen();
-    setFullscreenButtonsIcon(isFull);
-    return;
-  }
-
-  const doc = window.document;
-  const docEl = doc.documentElement;
-
-  const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
-  const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
-
-  if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-    if (requestFullScreen) {
-      requestFullScreen.call(docEl).catch(() => {
-        showToast('Schermo intero non supportato su questo browser/iOS', 'warning');
-      });
-    } else {
-      showToast('Suggerimento: su iPhone usa "Aggiungi alla schermata Home" per lo schermo intero!', 'info');
-    }
-  } else {
-    if (cancelFullScreen) {
-      cancelFullScreen.call(doc);
-    }
-  }
-}
-
-function updateFullscreenButtonsUI() {
-  const doc = window.document;
-  const isFull = !!(doc.fullscreenElement || doc.mozFullScreenElement || doc.webkitFullscreenElement || doc.msFullscreenElement);
-  setFullscreenButtonsIcon(isFull);
-}
-
-function setFullscreenButtonsIcon(isFull) {
-  const buttons = document.querySelectorAll('.fullscreen-toggle-btn');
-  buttons.forEach(btn => {
-    btn.innerHTML = isFull
-      ? '<i class="fa-solid fa-compress text-fuchsia-400"></i>'
-      : '<i class="fa-solid fa-expand"></i>';
-  });
-}
-
-document.addEventListener('fullscreenchange', updateFullscreenButtonsUI);
-document.addEventListener('webkitfullscreenchange', updateFullscreenButtonsUI);
-
-/*************************************************************************
- * 3. GAME STATE & WEB AUDIO SYNTHESIZER
+ * 3. GAME STATE
  *************************************************************************/
 // I giocatori arrivano dalla partita salvata o dai nomi salvati (vedi initNeonSips).
 let players = [];
@@ -132,105 +81,14 @@ let chainTimeLeft = 3.0;
 // Jury Countdown State
 let juryTimerInterval = null;
 
-// Audio Synthesizer State
-let audioEnabled = true;
-let audioCtx = null;
+// Imprevisti e verso del giro
+let direction = 1;            // 1 = in avanti, -1 = giro al contrario
+let skipPlayerId = null;      // chi salta il prossimo turno (imprevisto "Salta il turno")
+let currentTwistId = null;    // imprevisto della carta sul tavolo
+let twistsEnabled = true;     // interruttore "Imprevisti"
+let isDrawing = false;        // evita due carte di fila con un doppio tocco
 
-function initAudio() {
-  if (!audioCtx) {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (AudioContext) {
-      audioCtx = new AudioContext();
-    }
-  }
-  if (audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
-}
-
-function playSound(type) {
-  if (!audioEnabled) return;
-  try {
-    initAudio();
-    if (!audioCtx) return;
-
-    const now = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    if (type === 'flip') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(280, now);
-      osc.frequency.exponentialRampToValueAtTime(620, now + 0.11);
-      gain.gain.setValueAtTime(0.12, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-      osc.start(now);
-      osc.stop(now + 0.12);
-    } else if (type === 'shield') {
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.setValueAtTime(554.37, now + 0.08);
-      osc.frequency.setValueAtTime(659.25, now + 0.16);
-      gain.gain.setValueAtTime(0.18, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-      osc.start(now);
-      osc.stop(now + 0.35);
-    } else if (type === 'rule') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(320, now);
-      osc.frequency.exponentialRampToValueAtTime(480, now + 0.22);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
-      osc.start(now);
-      osc.stop(now + 0.24);
-    } else if (type === 'tick') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, now);
-      gain.gain.setValueAtTime(0.12, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-      osc.start(now);
-      osc.stop(now + 0.06);
-    } else if (type === 'buzzer') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(170, now);
-      osc.frequency.linearRampToValueAtTime(125, now + 0.4);
-      gain.gain.setValueAtTime(0.24, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
-      osc.start(now);
-      osc.stop(now + 0.42);
-    }
-  } catch (e) {
-    // Ignore audio errors on restricted devices
-  }
-}
-
-function toggleAudio() {
-  audioEnabled = !audioEnabled;
-  saveJSON(SETTINGS_STORAGE_KEY, { audioEnabled });
-  renderAudioButton();
-  if (audioEnabled) {
-    playSound('flip');
-    showToast('Effetti sonori attivati 🔊', 'info');
-  } else {
-    showToast('Audio disattivato 🔇', 'info');
-  }
-}
-
-function renderAudioButton() {
-  const btn = document.getElementById('audio-toggle-btn');
-  if (!btn) return;
-  if (audioEnabled) {
-    btn.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
-    btn.classList.remove('text-slate-500');
-    btn.classList.add('text-slate-300');
-  } else {
-    btn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i>';
-    btn.classList.remove('text-slate-300');
-    btn.classList.add('text-slate-500');
-  }
-}
+// Suoni, vibrazione e finestre sono comuni a tutti i giochi: playSound(), vibrate(), openModal() in public/common.js
 
 /*************************************************************************
  * 4. TOAST NOTIFICATION SYSTEM: showToast() è in public/common.js
@@ -239,7 +97,8 @@ function renderAudioButton() {
 /*************************************************************************
  * 5. LOBBY / START SCREEN FUNCTIONS
  *************************************************************************/
-function renderLobbyPlayers() {
+/** newPlayerId: il giocatore appena aggiunto entra con una piccola animazione. */
+function renderLobbyPlayers(newPlayerId) {
   const listEl = document.getElementById('lobby-player-list');
   const badgeEl = document.getElementById('player-count-badge');
   const startBtn = document.getElementById('start-game-btn');
@@ -259,7 +118,7 @@ function renderLobbyPlayers() {
   }
 
   listEl.innerHTML = players.map((p, idx) => `
-    <div class="flex items-center justify-between bg-slate-900/75 border border-slate-800/90 rounded-xl px-3.5 py-2.5">
+    <div class="flex items-center justify-between bg-slate-900/75 border border-slate-800/90 rounded-xl px-3.5 py-2.5 ${p.id === newPlayerId ? 'animate-row-in' : ''}">
       <div class="flex items-center gap-3">
         <span class="w-6 h-6 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-300 font-display text-xs font-bold flex items-center justify-center">
           ${idx + 1}
@@ -298,19 +157,22 @@ function handleAddPlayer(e) {
 
   input.value = '';
   input.focus();
-  playSound('flip');
+  playSound('tap');
   persistPlayers();
-  renderLobbyPlayers();
+  renderLobbyPlayers(players[players.length - 1].id);
 }
 
 function removePlayer(id) {
   players = players.filter(p => p.id !== id);
+  playSound('remove');
   persistPlayers();
   renderLobbyPlayers();
 }
 
 function clearAllPlayers() {
+  if (players.length === 0) return;
   players = [];
+  playSound('remove');
   persistPlayers();
   renderLobbyPlayers();
   showToast('Lista giocatori svuotata', 'info');
@@ -333,7 +195,7 @@ function addSamplePlayers() {
       });
     }
   });
-  playSound('flip');
+  playSound('success');
   persistPlayers();
   renderLobbyPlayers();
   showToast('Gruppo di amici aggiunto! 🍻', 'success');
@@ -358,13 +220,16 @@ function startGame() {
     return;
   }
 
-  initAudio();
-  playSound('shield');
+  playSound('start');
+  vibrate('short');
 
   // Reset shields & rules for a fresh game
   players.forEach(p => p.shields = 0);
   activeEffects = [];
   currentTurnIndex = 0;
+  direction = 1;
+  skipPlayerId = null;
+  currentTwistId = null;
 
   buildAndShuffleDeck();
 
@@ -375,8 +240,15 @@ function startGame() {
 
 function showGameScreen() {
   document.getElementById('start-screen').classList.add('hidden');
-  document.getElementById('game-screen').classList.remove('hidden');
+  const game = document.getElementById('game-screen');
+  game.classList.remove('hidden', 'animate-pop-in');
+  void game.offsetWidth;
+  game.classList.add('animate-pop-in');
   window.scrollTo(0, 0);
+}
+
+function isGameScreenVisible() {
+  return !document.getElementById('game-screen').classList.contains('hidden');
 }
 
 function pickRandomOpponent(excludePlayerId) {
@@ -387,10 +259,19 @@ function pickRandomOpponent(excludePlayerId) {
 }
 
 function nextTurnAndDraw() {
+  if (isDrawing) return;
   stopActiveCardTimers();
 
-  // Advance turn sequentially
-  currentTurnIndex = (currentTurnIndex + 1) % players.length;
+  // Turno successivo nel verso del giro (che un imprevisto può invertire)
+  currentTurnIndex = nextTurnIndex(currentTurnIndex, direction, players.length);
+  if (skipPlayerId) {
+    const skipped = players[currentTurnIndex];
+    if (skipped && skipped.id === skipPlayerId && players.length > 1) {
+      showToast(`⏭️ ${skipped.name} salta il turno!`, 'warning');
+      currentTurnIndex = nextTurnIndex(currentTurnIndex, direction, players.length);
+    }
+    skipPlayerId = null;
+  }
 
   // Decrement turn counters on active rules/curses
   const expiredTitles = [];
@@ -425,24 +306,92 @@ function drawCardForCurrentTurn(animateTransition = true) {
 
   currentP1 = players[currentTurnIndex];
   currentP2 = pickRandomOpponent(currentP1.id);
+
+  // Imprevisto: mai due di fila; alcuni cambiano subito la partita
+  currentTwistId = pickNeonTwist(twistsEnabled, currentTwistId, currentCard.category, players.length);
+  applyTwistEffect();
   saveMatch();
 
   const cardEl = document.getElementById('active-card');
   playSound('flip');
+  vibrate('short');
 
   if (animateTransition) {
+    isDrawing = true;
     cardEl.classList.remove('animate-card-in');
     cardEl.classList.add('animate-card-out');
 
     setTimeout(() => {
       updateGameUI();
       cardEl.classList.remove('animate-card-out');
+      void cardEl.offsetWidth;
       cardEl.classList.add('animate-card-in');
+      isDrawing = false;
+      announceTwist();
     }, 200);
   } else {
     updateGameUI();
+    cardEl.classList.remove('animate-card-in');
+    void cardEl.offsetWidth;
     cardEl.classList.add('animate-card-in');
+    announceTwist();
   }
+}
+
+/** Effetti degli imprevisti che cambiano la partita (applicati una volta, quando esce la carta). */
+function applyTwistEffect() {
+  const twist = findNeonTwist(currentTwistId);
+  if (!twist || !twist.effect) return;
+  if (twist.effect === 'reverse') {
+    direction = -direction;
+  } else if (twist.effect === 'skip') {
+    const next = players[nextTurnIndex(currentTurnIndex, direction, players.length)];
+    skipPlayerId = next && next !== currentP1 ? next.id : null;
+  } else if (twist.effect === 'shield') {
+    currentP1.shields += 1;
+  }
+}
+
+/** Suono dell'imprevisto, un attimo dopo la carta (insieme all'animazione del riquadro). */
+function announceTwist() {
+  if (!currentTwistId) return;
+  setTimeout(() => {
+    playSound('twist');
+    vibrate('short');
+  }, 280);
+}
+
+/** Testo dell'imprevisto con i nomi al posto dei segnaposto (già sicuro per l'HTML). */
+function twistRuleHtml(twist) {
+  const skipped = players.find(p => p.id === skipPlayerId);
+  const nextName = skipped ? skipped.name : 'Il prossimo';
+  return formatDynamicCardText(twist.rule, currentP1.name, currentP2.name)
+    .replace(/\{next\}/g, () => `<span class="player-highlight-2">${escapeHtml(nextName)}</span>`);
+}
+
+function renderTwist() {
+  const box = document.getElementById('card-twist');
+  const badge = document.getElementById('card-sips-badge');
+  const twist = findNeonTwist(currentTwistId);
+  badge.classList.toggle('sips-badge-twist', !!twist);
+  if (!twist) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+  box.innerHTML = twistBoxHtml(twist, twistRuleHtml(twist));
+  box.classList.remove('hidden');
+}
+
+function renderDirection() {
+  document.getElementById('turn-direction').classList.toggle('hidden', direction !== -1);
+}
+
+function toggleNeonTwists(on) {
+  twistsEnabled = !!on;
+  saveJSON(SETTINGS_STORAGE_KEY, { twists: twistsEnabled });
+  playSound('tap');
+  showToast(on ? '🎲 Imprevisti attivati' : 'Imprevisti disattivati', 'info');
 }
 
 /*************************************************************************
@@ -503,6 +452,10 @@ function updateGameUI() {
 
   // 5. Render Context-Specific Interactive Buttons inside the Card
   renderCardContextActions(cat);
+
+  // 6. Imprevisto e verso del giro
+  renderTwist();
+  renderDirection();
 }
 
 function renderCardContextActions(cat) {
@@ -664,9 +617,10 @@ function startOrResetChainTimer() {
   label.textContent = `⏱️ ${chainTimeLeft.toFixed(1)}s (Tocca per Reset al prossimo)`;
 
   let lastWholeSecond = 3;
+  const startedAt = performance.now();
 
   chainTimerInterval = setInterval(() => {
-    chainTimeLeft -= 0.1;
+    chainTimeLeft = Math.max(0, 3 - (performance.now() - startedAt) / 1000);
     if (chainTimeLeft <= 0) {
       clearInterval(chainTimerInterval);
       chainTimerInterval = null;
@@ -682,7 +636,7 @@ function startOrResetChainTimer() {
       }
       label.textContent = `⏱️ ${chainTimeLeft.toFixed(1)}s (Tocca per Reset 3s)`;
     }
-  }, 100);
+  }, 50);
 }
 
 // Jury 3-2-1 Countdown Logic
@@ -708,7 +662,8 @@ function triggerJuryCountdown() {
     } else {
       clearInterval(juryTimerInterval);
       juryTimerInterval = null;
-      playSound('shield');
+      playSound('success');
+      vibrate('long');
       btn.className = 'w-full py-2.5 px-4 rounded-xl bg-orange-500 text-slate-950 font-extrabold text-sm transition-all flex items-center justify-center gap-2';
       label.textContent = '👉 INDICATE TUTTI ADESSO! 👈';
     }
@@ -771,7 +726,7 @@ function promptUseShield(playerId) {
   const confirmBtn = document.getElementById('confirm-use-shield-btn');
   confirmBtn.onclick = () => confirmUseShield();
 
-  document.getElementById('shield-modal').classList.remove('hidden');
+  openModal('shield-modal');
 }
 
 function confirmUseShield() {
@@ -788,7 +743,7 @@ function confirmUseShield() {
 
 function closeShieldModal() {
   pendingShieldPlayerId = null;
-  document.getElementById('shield-modal').classList.add('hidden');
+  closeModal('shield-modal');
 }
 
 function renderActiveEffectsBar() {
@@ -842,11 +797,12 @@ function dismissEffect(uid) {
 
 function openRulesModal() {
   renderRulesModalList();
-  document.getElementById('rules-modal').classList.remove('hidden');
+  playSound('tap');
+  openModal('rules-modal');
 }
 
 function closeRulesModal() {
-  document.getElementById('rules-modal').classList.add('hidden');
+  closeModal('rules-modal');
 }
 
 function renderRulesModalList() {
@@ -890,7 +846,8 @@ function renderRulesModalList() {
  *************************************************************************/
 function openResetModal() {
   renderMidgamePlayersList();
-  document.getElementById('reset-modal').classList.remove('hidden');
+  playSound('tap');
+  openModal('reset-modal');
 }
 
 function renderMidgamePlayersList() {
@@ -946,7 +903,7 @@ function fixCurrentPlayersAfterChange() {
 }
 
 function closeResetModal() {
-  document.getElementById('reset-modal').classList.add('hidden');
+  closeModal('reset-modal');
 }
 
 function handleAddPlayerMidGame(e) {
@@ -984,8 +941,13 @@ function returnToLobby() {
   stopActiveCardTimers();
   closeResetModal();
   saveMatch();
+  playSound('back');
   document.getElementById('game-screen').classList.add('hidden');
-  document.getElementById('start-screen').classList.remove('hidden');
+  const lobby = document.getElementById('start-screen');
+  lobby.classList.remove('hidden', 'animate-pop-in');
+  void lobby.offsetWidth;
+  lobby.classList.add('animate-pop-in');
+  window.scrollTo(0, 0);
   renderLobbyPlayers();
   updateDeckCountBadges();
 }
@@ -1006,6 +968,9 @@ function saveMatch() {
     p2Id: currentP2 ? currentP2.id : null,
     activeEffects,
     cardActionUsed,
+    direction,
+    skipPlayerId,
+    twistId: currentTwistId,
     savedAt: new Date().toISOString()
   });
 }
@@ -1030,6 +995,9 @@ function loadSavedMatch() {
   currentTurnIndex = Math.min(Math.max(0, Number(m.currentTurnIndex) || 0), players.length - 1);
   currentP1 = players.find(p => p.id === m.p1Id) || null;
   currentP2 = players.find(p => p.id === m.p2Id) || null;
+  direction = m.direction === -1 ? -1 : 1;
+  skipPlayerId = players.some(p => p.id === m.skipPlayerId) ? m.skipPlayerId : null;
+  currentTwistId = findNeonTwist(m.twistId) ? m.twistId : null;
   fixCurrentPlayersAfterChange();
   return true;
 }
@@ -1039,10 +1007,6 @@ function renderResumeButton() {
   const startLabel = document.getElementById('start-game-label');
   const canResume = !!currentCard && players.length >= 2;
   btn.classList.toggle('hidden', !canResume);
-  // Con il pulsante in più, la lista dei giocatori si accorcia per stare tutto nello schermo
-  const panel = document.getElementById('lobby-panel');
-  panel.classList.toggle('max-h-[64dvh]', !canResume);
-  panel.classList.toggle('max-h-[55dvh]', canResume);
   document.getElementById('resume-game-label').textContent = canResume
     ? `RIPRENDI LA PARTITA (CARTA ${Math.max(1, playedCount)})`
     : 'RIPRENDI LA PARTITA';
@@ -1051,15 +1015,16 @@ function renderResumeButton() {
 
 function resumeGame() {
   if (!currentCard || players.length < 2) return;
-  initAudio();
   fixCurrentPlayersAfterChange();
   saveMatch();
   showGameScreen();
   const cardEl = document.getElementById('active-card');
   updateGameUI();
-  cardEl.classList.remove('animate-card-out');
+  cardEl.classList.remove('animate-card-out', 'animate-card-in');
+  void cardEl.offsetWidth;
   cardEl.classList.add('animate-card-in');
-  playSound('flip');
+  playSound('start');
+  vibrate('short');
 }
 
 /*************************************************************************
@@ -1067,21 +1032,19 @@ function resumeGame() {
  * true = gestito qui; false = si torna al menu dei giochi.
  *************************************************************************/
 window.handleAndroidBack = function handleAndroidBack() {
-  const isOpen = id => !document.getElementById(id).classList.contains('hidden');
-
-  if (isOpen('restore-deck-modal')) { closeRestoreDefaultConfirm(); return true; }
-  if (isOpen('deck-manager-modal')) {
-    if (isOpen('deck-tab-form')) {
+  if (isModalOpen('restore-deck-modal')) { closeRestoreDefaultConfirm(); return true; }
+  if (isModalOpen('deck-manager-modal')) {
+    if (!document.getElementById('deck-tab-form').classList.contains('hidden')) {
       switchDeckManagerTab('list');
     } else {
       closeDeckManagerModal();
     }
     return true;
   }
-  if (isOpen('shield-modal')) { closeShieldModal(); return true; }
-  if (isOpen('rules-modal')) { closeRulesModal(); return true; }
-  if (isOpen('reset-modal')) { closeResetModal(); return true; }
-  if (isOpen('game-screen')) { returnToLobby(); return true; }
+  if (isModalOpen('shield-modal')) { closeShieldModal(); return true; }
+  if (isModalOpen('rules-modal')) { closeRulesModal(); return true; }
+  if (isModalOpen('reset-modal')) { closeResetModal(); return true; }
+  if (isGameScreenVisible()) { returnToLobby(); return true; }
   return false;
 };
 
@@ -1096,11 +1059,12 @@ function openDeckManagerModal(initialTab = 'list') {
   } else {
     switchDeckManagerTab('list');
   }
-  document.getElementById('deck-manager-modal').classList.remove('hidden');
+  playSound('tap');
+  openModal('deck-manager-modal');
 }
 
 function closeDeckManagerModal() {
-  document.getElementById('deck-manager-modal').classList.add('hidden');
+  closeModal('deck-manager-modal');
 }
 
 function switchDeckManagerTab(tab) {
@@ -1423,11 +1387,11 @@ function deleteCardFromDeck(cardId) {
 }
 
 function openRestoreDefaultConfirm() {
-  document.getElementById('restore-deck-modal').classList.remove('hidden');
+  openModal('restore-deck-modal');
 }
 
 function closeRestoreDefaultConfirm() {
-  document.getElementById('restore-deck-modal').classList.add('hidden');
+  closeModal('restore-deck-modal');
 }
 
 function confirmRestoreDefaultDeck() {
@@ -1440,11 +1404,11 @@ function confirmRestoreDefaultDeck() {
   renderDeckManagerList();
   closeRestoreDefaultConfirm();
 
-  if (currentCard && !document.getElementById('game-screen').classList.contains('hidden')) {
+  if (currentCard && isGameScreenVisible()) {
     drawCardForCurrentTurn(true);
   }
 
-  playSound('shield');
+  playSound('success');
   showToast('🔄 Mazzo originale da 70 carte ripristinato!', 'success');
 }
 
@@ -1455,17 +1419,18 @@ function confirmRestoreDefaultDeck() {
 
 function initNeonSips() {
   const settings = loadJSON(SETTINGS_STORAGE_KEY, {});
-  audioEnabled = settings.audioEnabled !== false;
-  renderAudioButton();
+  // Versione 1.0: l'audio di Neon Sips aveva un interruttore suo; ora i suoni sono uguali per tutti i giochi
+  if (settings.audioEnabled === false) setAppSetting('sound', false);
+  twistsEnabled = settings.twists !== false;
+  saveJSON(SETTINGS_STORAGE_KEY, { twists: twistsEnabled });
+  document.getElementById('twists-toggle').checked = twistsEnabled;
+  renderSoundButtons();
 
   loadCustomDeckFromStorage();
   if (!loadSavedMatch()) {
     players = loadSavedPlayerNames().map(name => ({ id: makeId('p'), name, shields: 0 }));
   }
   renderLobbyPlayers();
-
-  const app = nativeApp();
-  if (app && app.isNative && app.isFullscreen) setFullscreenButtonsIcon(app.isFullscreen());
 }
 
 window.addEventListener('DOMContentLoaded', initNeonSips);

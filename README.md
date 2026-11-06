@@ -5,7 +5,9 @@ Giochi per bere in compagnia, in un'unica app Android: dal menu iniziale scegli 
 ## I giochi
 
 - **Hai Mai?** – il classico: si legge la domanda ad alta voce e chi l'ha fatto beve. 120 domande in 4 categorie (Tranquille, Festa, Imbarazzanti, Piccanti 18+), imprevisti a sorpresa (al contrario, sorsi doppi, racconta…) e le vostre domande personalizzate.
-- **Neon Sips** – un mazzo di 70 carte con i nomi dei giocatori: catene a tempo, bersagli, duelli 1 contro 1, scudi, nuove regole, giuria e maledizioni. Mazzo modificabile, carte personalizzate, imbucati a partita in corso.
+- **Neon Sips** – un mazzo di 70 carte con i nomi dei giocatori: catene a tempo, bersagli, duelli 1 contro 1, scudi, nuove regole, giuria e maledizioni, più gli imprevisti (giro al contrario, salta il turno, sorsi doppi…). Mazzo modificabile, carte personalizzate, imbucati a partita in corso.
+
+Suoni e vibrazione sono uguali in tutti i giochi e si spengono dal menu (ℹ️).
 
 Le partite si salvano da sole: se chiudi l'app, dal gioco tocchi **Riprendi** e ricominci da dov'eri.
 
@@ -27,7 +29,7 @@ Apri il file scaricato e tocca **Aggiorna**: la nuova versione si installa sopra
 
 ## Per chi sviluppa
 
-- Una pagina HTML per schermata principale: `index.html` (menu), `hai-mai.html`, `neon-sips.html`. Ogni gioco ha la sua cartella in `public/` con i dati (`questions.js`, `deck.js`) e la logica (`game.js`). `public/common.js` ha le funzioni comuni (memoria, avvisi, aggiornamenti). `src/style.css` è lo stile comune (Tailwind 3, caratteri Outfit e Space Grotesk, icone Font Awesome, tutto incluso nell'app). `src/native.js` collega le funzioni del telefono (tasto Indietro, vibrazione, schermo intero).
+- Una pagina HTML per schermata principale: `index.html` (menu), `hai-mai.html`, `neon-sips.html`. Ogni gioco ha la sua cartella in `public/` con i dati (`questions.js`, `deck.js`) e la logica (`game.js`). `public/common.js` ha le funzioni comuni: memoria, avvisi, suoni (`playSound`), vibrazione, finestre (`openModal`/`closeModal`), passaggio tra pagine, imprevisti (`pickFromTwists`, `twistBoxHtml`) e aggiornamenti. `src/style.css` è lo stile comune (Tailwind 3, caratteri Outfit e Space Grotesk, icone Font Awesome, tutto incluso nell'app) con i pezzi uguali in tutti i giochi (`icon-btn`, `pill-btn`, `game-topbar`, `cta-main`, `sticky-cta`, `twist-box`…). `src/native.js` collega le funzioni del telefono (tasto Indietro, vibrazione).
 - **Aggiungere un gioco:** crea `nome-gioco.html` (copia la struttura di `hai-mai.html`), mettine la logica in `public/nome-gioco/`, aggiungi la pagina in `vite.config.js` (`rollupOptions.input`) e una voce in `GAMES` dentro `public/home.js`. Il codice generato con Gemini che usa `cdn.tailwindcss.com` funziona così com'è: basta togliere i link ai CDN e includere `/src/main.js` e `common.js`.
 - `npm run dev` avvia la versione web, `npm test` controlla domande, mazzo e regole, `npm run verify` fa test e build. `python3 tests/smoke.py` (dopo `npm run build`) gioca a tutti i giochi in Chrome.
 - Quando su `main` cambia la versione in `package.json`, GitHub Actions costruisce l'APK firmato e pubblica la Release `vX.Y.Z` (`.github/workflows/release.yml`). A ogni push `.github/workflows/check.yml` fa test, build web e build Android di prova.
