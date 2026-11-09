@@ -5,6 +5,7 @@ Serve Python con Playwright e Google Chrome installati. Non gira su GitHub Actio
 """
 import functools
 import http.server
+import json
 import pathlib
 import socketserver
 import sys
@@ -66,7 +67,7 @@ def test_home(page, base):
     check(page.locator("[data-game=neon-sips]").get_attribute("href") == "./neon-sips.html", "link a Neon Sips")
     check("Versione" in page.locator("#footer-version").inner_text(), "versione in fondo")
     common_checks(page, "menu")
-    page.click("button[aria-label='Informazioni e aggiornamenti']")
+    page.click("button[aria-label='Informazioni e impostazioni']")
     page.wait_for_timeout(300)
     check(page.locator("#info-modal").is_visible(), "si apre la finestra informazioni")
     check(page.locator("#setting-sound").is_checked() and page.locator("#setting-haptics").is_checked(), "suoni e vibrazione accesi")
@@ -283,6 +284,147 @@ def test_hai_mai(page, base):
     back(page)
 
 
+APP_VERSION = json.loads((ROOT.parent / "package.json").read_text())["version"]
+APK_URL = "https://github.com/Nikcirri/cincin/releases/download/v9.9.9/CinCin-v9.9.9.apk"
+
+# Telefono finto: window.CinCinApp come nell'app Android, con il plugin degli aggiornamenti simulato.
+FAKE_PHONE = """
+(() => {
+  window.__phone = { allowed: false, downloads: [], settingsOpened: 0, external: [] };
+  const mock = {
+    version: '%s',
+    isNative: true,
+    vibrate() {},
+    minimize() {},
+    openExternal(url) { window.__phone.external.push(url); },
+    updater: {
+      async canInstall() { return window.__phone.allowed; },
+      async openInstallSettings() { window.__phone.settingsOpened++; },
+      async downloadAndInstall(url, onProgress) {
+        window.__phone.downloads.push(url);
+        for (const p of [25, 50, 75, 100]) {
+          await new Promise(r => setTimeout(r, 150));
+          onProgress(p);
+        }
+      }
+    }
+  };
+  // src/native.js prova a sostituirlo: qui si tiene quello finto
+  Object.defineProperty(window, 'CinCinApp', { configurable: true, get() { return mock; }, set() {} });
+})();
+""" % APP_VERSION
+
+
+def release_json(apk_url=APK_URL):
+    return {
+        "tag_name": "v9.9.9",
+        "html_url": "https://github.com/Nikcirri/cincin/releases/tag/v9.9.9",
+        "body": "Novità di prova.\n\n- **Prima** novità\n- Seconda novità\n  - dettaglio\n- Terza novità\n- Quarta novità\n\n### Come installare\n- niente",
+        "assets": [{"name": "CinCin-v9.9.9.apk", "browser_download_url": apk_url}],
+    }
+
+
+def test_updates(browser, base):
+    print("Aggiornamenti dentro l'app (telefono simulato)")
+    context = browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2)
+    context.add_init_script(FAKE_PHONE)
+    calls = {"n": 0, "apk": APK_URL}
+
+    def github(route):
+        calls["n"] += 1
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(release_json(calls["apk"])))
+
+    context.route("https://api.github.com/repos/Nikcirri/cincin/releases/latest", github)
+    page = context.new_page()
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+
+    # "App aggiornata alla versione X" solo al primo avvio dopo un aggiornamento
+    open_page(page, base + "/index.html")
+    page.evaluate("localStorage.setItem('cincin_last_version_v1', JSON.stringify('1.1.0'))")
+    open_page(page, base + "/index.html")
+    page.wait_for_timeout(700)
+    check(f"App aggiornata alla versione {APP_VERSION}" in page.locator("#toast-container").inner_text(), "messaggio App aggiornata")
+    open_page(page, base + "/index.html")
+    page.wait_for_timeout(700)
+    check("App aggiornata" not in page.locator("#toast-container").inner_text(), "il messaggio compare una volta sola")
+
+    # Avviso in alto con versione, 3 novità, Aggiorna e Dopo
+    banner = page.locator("#update-banner")
+    check(banner.is_visible(), "avviso della nuova versione in alto")
+    text = banner.inner_text()
+    check("Nuova versione 9.9.9" in text, "numero di versione nell'avviso")
+    check(banner.locator("li").count() == 3 and "Prima novità" in text and "Quarta" not in text and "dettaglio" not in text,
+          "le prime 3 novità del changelog")
+    check(banner.locator("button", has_text="Aggiorna").count() == 1 and banner.locator("button", has_text="Dopo").count() == 1,
+          "pulsanti Aggiorna e Dopo")
+    check(calls["n"] == 1, "un solo controllo su GitHub")
+    shot(page, "update-banner")
+
+    page.locator("#update-banner button", has_text="Dopo").click()
+    page.wait_for_timeout(300)
+    check(banner.is_hidden(), "Dopo chiude l'avviso")
+    check("Aggiornamenti" in page.locator("#toast-container").inner_text(), "Dopo dice dove ritrovarlo")
+    check(page.locator("#updates-entry-dot").is_visible() and "9.9.9" in page.locator("#updates-entry-sub").inner_text(),
+          "la voce Aggiornamenti segnala la nuova versione")
+
+    open_page(page, base + "/index.html")
+    page.wait_for_timeout(300)
+    check(banner.is_hidden(), "dopo Dopo l'avviso non torna a ogni pagina")
+    check(calls["n"] == 1, "entro 10 minuti non si richiede a GitHub")
+    page.evaluate("""() => {
+      const s = JSON.parse(localStorage.getItem('cincin_updates_v1'));
+      s.lastCheck = new Date(Date.now() - 11 * 60000).toISOString();
+      localStorage.setItem('cincin_updates_v1', JSON.stringify(s));
+      window.dispatchEvent(new Event('cincin:resume'));
+    }""")
+    page.wait_for_timeout(500)
+    check(calls["n"] == 2, "al ritorno nell'app, dopo 10 minuti, ricontrolla")
+
+    # Voce Aggiornamenti: versione, Controlla, Aggiorna dall'app, Scarica da GitHub
+    page.click("#updates-entry")
+    page.wait_for_timeout(300)
+    check(f"Versione installata: {APP_VERSION}" in page.locator("#updates-version").inner_text(), "versione installata")
+    page.click("#updates-check-btn")
+    page.wait_for_timeout(400)
+    check("9.9.9" in page.locator("#updates-status").inner_text(), "Controlla aggiornamenti trova la 9.9.9")
+    shot(page, "updates-modal")
+    page.click("text=Scarica da GitHub")
+    check(page.evaluate("window.__phone.external") == ["https://github.com/Nikcirri/cincin/releases/latest"], "Scarica da GitHub apre la pagina delle Release")
+
+    # Permesso "Installa app sconosciute": spiegazione, impostazioni, ripresa da sola
+    page.click("#updates-install-btn")
+    page.wait_for_timeout(350)
+    check(page.locator("#permission-modal").is_visible(), "spiega il permesso da dare")
+    shot(page, "update-permission")
+    page.locator("#permission-modal button", has_text="Apri impostazioni").click()
+    page.wait_for_timeout(300)
+    check(page.evaluate("window.__phone.settingsOpened") == 1, "apre le impostazioni giuste")
+    check("Dai il permesso" in banner.inner_text(), "l'avviso dice cosa fare")
+    page.evaluate("window.__phone.allowed = true; window.dispatchEvent(new Event('cincin:resume'))")
+    page.wait_for_timeout(380)
+    check("Scarico la versione 9.9.9" in banner.inner_text() and "%" in banner.inner_text(), "al ritorno riparte e mostra la percentuale")
+    shot(page, "update-download")
+    page.wait_for_timeout(800)
+    check(page.evaluate("window.__phone.downloads") == [APK_URL], "scarica solo l'APK della Release")
+    check("Quasi fatto" in banner.inner_text(), "poi apre l'installazione di Android")
+    page.evaluate("window.dispatchEvent(new Event('cincin:resume'))")
+    page.wait_for_timeout(300)
+    check("Nuova versione 9.9.9" in banner.inner_text(), "se non si installa, si può riprovare")
+
+    # Indirizzo dell'APK non ammesso: niente download, si apre la pagina di GitHub
+    calls["apk"] = "https://altrove.example/CinCin-v9.9.9.apk"
+    page.evaluate("localStorage.removeItem('cincin_updates_v1'); sessionStorage.clear()")
+    open_page(page, base + "/index.html")
+    page.wait_for_timeout(400)
+    page.locator("#update-banner button", has_text="Aggiorna").click()
+    page.wait_for_timeout(300)
+    check(page.evaluate("window.__phone.downloads.length") == 0, "un APK fuori dalle Release non si scarica")
+    check(page.evaluate("window.__phone.external.slice(-1)[0]").startswith("https://github.com/Nikcirri/cincin/"), "si apre GitHub al suo posto")
+    back(page, False)
+    context.close()
+
+
 def main():
     if not (DIST / "index.html").exists():
         print("Prima esegui: npm run build")
@@ -300,6 +442,7 @@ def main():
         test_home(page, base)
         test_neon_sips(page, base)
         test_hai_mai(page, base)
+        test_updates(browser, base)
 
         print("Menu con partite in corso")
         open_page(page, base + "/index.html")

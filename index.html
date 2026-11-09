@@ -23,12 +23,15 @@
         type="button"
         onclick="openInfoModal()"
         class="icon-btn"
-        title="Informazioni e aggiornamenti"
-        aria-label="Informazioni e aggiornamenti"
+        title="Informazioni e impostazioni"
+        aria-label="Informazioni e impostazioni"
       >
         <i class="fa-solid fa-circle-info"></i>
       </button>
     </div>
+
+    <!-- Avviso aggiornamento in alto: nuova versione, download, installazione, permesso (disegnato da home.js) -->
+    <div id="update-banner" class="hidden mt-3 mb-5" role="status" aria-live="polite"></div>
 
     <!-- Titolo -->
     <header class="text-center mt-1 mb-6">
@@ -43,27 +46,6 @@
       </p>
     </header>
 
-    <!-- Avviso nuova versione -->
-    <div id="update-banner" class="hidden glass-panel rounded-2xl p-4 mb-4 border border-cyan-400/40 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
-      <div class="flex items-start gap-3">
-        <div class="w-9 h-9 rounded-xl bg-cyan-400/15 text-cyan-300 flex items-center justify-center shrink-0">
-          <i class="fa-solid fa-gift"></i>
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="font-display font-bold text-white text-sm">Nuova versione di Cin Cin</div>
-          <p id="update-banner-text" class="text-xs text-slate-300 mt-0.5 leading-relaxed"></p>
-        </div>
-      </div>
-      <div class="flex gap-2 mt-3">
-        <button type="button" onclick="downloadUpdate()" class="flex-[2] py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-extrabold text-sm">
-          <i class="fa-solid fa-download mr-1"></i> Scarica l'aggiornamento
-        </button>
-        <button type="button" onclick="dismissUpdateBanner()" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm">
-          Più tardi
-        </button>
-      </div>
-    </div>
-
     <!-- Elenco dei giochi -->
     <section id="games-list" class="space-y-4">
       <!-- Riempito da home.js -->
@@ -74,13 +56,31 @@
       Altri giochi in arrivo…
     </div>
 
+    <!-- Voce Aggiornamenti -->
+    <button
+      id="updates-entry"
+      type="button"
+      onclick="openUpdatesModal()"
+      class="mt-4 w-full glass-panel rounded-3xl px-4 py-3.5 flex items-center gap-3 text-left transition-all active:scale-[0.98]"
+    >
+      <div class="w-10 h-10 rounded-xl bg-cyan-400/15 border border-cyan-400/30 text-cyan-300 flex items-center justify-center text-lg shrink-0">
+        <i class="fa-solid fa-rotate"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-bold text-sm text-white">Aggiornamenti</div>
+        <div id="updates-entry-sub" class="text-xs text-slate-400 truncate">Versione installata</div>
+      </div>
+      <span id="updates-entry-dot" class="hidden w-2.5 h-2.5 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.9)]"></span>
+      <i class="fa-solid fa-chevron-right text-slate-500"></i>
+    </button>
+
     <footer class="mt-auto pt-6 text-center text-[11px] text-slate-500 leading-relaxed">
       🥤 Bevete con la testa: va bene anche l'analcolico, e chi guida non beve.
       <div class="mt-1 text-slate-600" id="footer-version"></div>
     </footer>
   </main>
 
-  <!-- ==================== FINESTRA: INFORMAZIONI E AGGIORNAMENTI ==================== -->
+  <!-- ==================== FINESTRA: INFORMAZIONI E IMPOSTAZIONI ==================== -->
   <div id="info-modal" class="safe-modal fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80" onclick="if (event.target === this) closeInfoModal()">
     <div class="glass-panel rounded-3xl p-6 w-full max-w-sm max-h-full overflow-y-auto border border-purple-500/40 shadow-2xl space-y-4">
       <div class="flex items-center justify-between">
@@ -124,19 +124,68 @@
           </span>
         </label>
       </div>
-      <div class="rounded-2xl bg-slate-900/80 border border-slate-800 p-3.5 space-y-1">
-        <div id="info-version" class="font-bold text-white text-sm"></div>
-        <div id="info-update-status" class="text-xs text-slate-400">Non hai ancora controllato gli aggiornamenti.</div>
+      <p class="text-[11px] text-slate-500 leading-relaxed">
+        <span id="info-version"></span> · Gli aggiornamenti li trovi nel menu, alla voce <strong class="text-slate-300">Aggiornamenti</strong>.
+      </p>
+    </div>
+  </div>
+
+  <!-- ==================== FINESTRA: AGGIORNAMENTI ==================== -->
+  <div id="updates-modal" class="safe-modal fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80" onclick="if (event.target === this) closeUpdatesModal()">
+    <div class="glass-panel rounded-3xl p-6 w-full max-w-sm max-h-full overflow-y-auto border border-cyan-400/40 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-display text-lg font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-rotate text-cyan-300"></i> Aggiornamenti
+        </h3>
+        <button type="button" onclick="closeUpdatesModal()" class="icon-btn" aria-label="Chiudi">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
-      <button id="info-check-btn" type="button" onclick="manualCheckForUpdates()" class="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60">
-        <i class="fa-solid fa-rotate"></i> <span id="info-check-label">Controlla aggiornamenti</span>
+      <div class="rounded-2xl bg-slate-900/80 border border-slate-800 p-3.5 space-y-1">
+        <div id="updates-version" class="font-bold text-white text-sm">Versione installata</div>
+        <div id="updates-status" class="text-xs text-slate-400 leading-relaxed">Non hai ancora controllato gli aggiornamenti.</div>
+        <ul id="updates-notes" class="hidden text-xs text-slate-300 space-y-1 pt-1.5 list-disc pl-4"></ul>
+      </div>
+      <button id="updates-check-btn" type="button" onclick="manualCheckForUpdates()" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.98] transition-all">
+        <i class="fa-solid fa-magnifying-glass"></i> <span id="updates-check-label">Controlla aggiornamenti</span>
       </button>
-      <button id="info-download-btn" type="button" onclick="downloadUpdate()" class="hidden w-full py-3 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2">
-        <i class="fa-solid fa-download"></i> Scarica l'aggiornamento
+      <button id="updates-install-btn" type="button" onclick="updateFromApp()" class="w-full py-3 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.98] transition-all">
+        <i class="fa-solid fa-download"></i> <span id="updates-install-label">Aggiorna dall'app</span>
+      </button>
+      <button type="button" onclick="downloadFromGitHub()" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> Scarica da GitHub
       </button>
       <p class="text-[11px] text-slate-500 leading-relaxed">
-        Per aggiornare: scarica il file, aprilo e tocca <strong class="text-slate-300">Aggiorna</strong>. La nuova versione si installa sopra quella vecchia e i dati restano.
+        La nuova versione si installa sopra quella attuale: giocatori, carte e domande restano. Il file scaricato resta nella memoria temporanea dell'app (una sola copia): per liberare spazio basta <strong class="text-slate-300">Svuota cache</strong> nelle impostazioni dell'app.
       </p>
+    </div>
+  </div>
+
+  <!-- ==================== FINESTRA: PERMESSO "INSTALLA APP SCONOSCIUTE" ==================== -->
+  <div id="permission-modal" class="safe-modal fixed inset-0 z-[60] hidden flex items-center justify-center bg-black/85" onclick="if (event.target === this) closePermissionModal()">
+    <div class="glass-panel rounded-3xl p-6 w-full max-w-sm max-h-full overflow-y-auto border border-yellow-400/50 shadow-2xl space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-yellow-400 text-slate-950 flex items-center justify-center text-lg shrink-0 shadow-[0_0_14px_rgba(250,204,21,0.55)]">
+          <i class="fa-solid fa-key"></i>
+        </div>
+        <h3 class="font-display text-lg font-bold text-white leading-tight">Serve un permesso, una volta sola</h3>
+      </div>
+      <p class="text-sm text-slate-300 leading-relaxed">
+        Per installare gli aggiornamenti dall'app, Android chiede di consentirlo a Cin Cin.
+      </p>
+      <ol class="space-y-2 text-sm text-slate-200">
+        <li class="flex gap-2.5"><span class="w-6 h-6 shrink-0 rounded-lg bg-yellow-400/15 text-yellow-300 text-xs font-extrabold flex items-center justify-center">1</span> <span>Tocca <strong>Apri impostazioni</strong> qui sotto.</span></li>
+        <li class="flex gap-2.5"><span class="w-6 h-6 shrink-0 rounded-lg bg-yellow-400/15 text-yellow-300 text-xs font-extrabold flex items-center justify-center">2</span> <span>Attiva <strong>Consenti da questa origine</strong>.</span></li>
+        <li class="flex gap-2.5"><span class="w-6 h-6 shrink-0 rounded-lg bg-yellow-400/15 text-yellow-300 text-xs font-extrabold flex items-center justify-center">3</span> <span>Torna indietro: l'aggiornamento riparte da solo.</span></li>
+      </ol>
+      <div class="flex gap-2">
+        <button type="button" onclick="closePermissionModal()" class="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm active:scale-[0.98] transition-all">
+          Annulla
+        </button>
+        <button type="button" onclick="goToInstallSettings()" class="flex-[2] py-3 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-sm active:scale-[0.98] transition-all">
+          Apri impostazioni
+        </button>
+      </div>
     </div>
   </div>
 

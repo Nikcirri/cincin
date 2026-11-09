@@ -1,5 +1,18 @@
 # Novità
 
+## [1.2.0] - 2026-11-10
+
+Aggiornamenti direttamente dall'app, senza passare dal browser.
+
+- Tocchi "Aggiorna": l'app scarica la nuova versione mostrando la percentuale e apre l'installazione.
+- Avviso in alto nel menu con le novità; "Dopo" lo chiude e lo ritrovi alla voce "Aggiornamenti".
+- Nuova voce "Aggiornamenti" nel menu: versione installata, controllo, "Aggiorna dall'app" e "Scarica da GitHub".
+- Se Android chiede il permesso "Installa app sconosciute", l'app spiega cosa toccare e riparte da sola.
+- Dopo ogni aggiornamento compare il messaggio "App aggiornata alla versione X".
+- Controllo all'apertura e ogni volta che torni nell'app (al massimo ogni 10 minuti).
+- Il file scaricato sta nella memoria temporanea dell'app, una sola copia: per liberare spazio basta "Svuota cache".
+- Sicurezza: si scaricano solo i file .apk delle Release di Cin Cin su GitHub, solo su https, e si controlla che siano completi.
+
 ## [1.1.0] - 2026-11-06
 
 Grafica e suoni uguali in tutti i giochi, più fluidi.

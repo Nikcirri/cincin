@@ -9,13 +9,17 @@
 
 const SHARED_KEYS = {
   PLAYERS: 'cincin_players_v1', // nomi dei giocatori, condivisi tra i giochi
-  UPDATES: 'cincin_updates_v1',
-  SETTINGS: 'cincin_settings_v1' // suoni e vibrazione, uguali per tutti i giochi
+  UPDATES: 'cincin_updates_v1', // ultimo controllo aggiornamenti e ultima versione vista su GitHub
+  SETTINGS: 'cincin_settings_v1', // suoni e vibrazione, uguali per tutti i giochi
+  LAST_VERSION: 'cincin_last_version_v1' // versione dell'ultimo avvio (per "App aggiornata alla versione X")
 };
 
 const UPDATE_API_URL = 'https://api.github.com/repos/Nikcirri/cincin/releases/latest';
 const UPDATE_PAGE_URL = 'https://github.com/Nikcirri/cincin/releases/latest';
-const UPDATE_AUTO_CHECK_HOURS = 24;
+/** L'app scarica aggiornamenti solo da qui (lo stesso controllo c'è nel plugin Android). */
+const UPDATE_APK_PREFIX = 'https://github.com/Nikcirri/cincin/releases/download/';
+/** Controllo automatico all'apertura e al ritorno nell'app, al massimo ogni 10 minuti. */
+const UPDATE_AUTO_CHECK_MINUTES = 10;
 
 /** Probabilità che una carta o domanda abbia un imprevisto (uguale in tutti i giochi). */
 const TWIST_CHANCE = 0.15;
@@ -319,7 +323,7 @@ if (typeof document !== 'undefined' && document.addEventListener) {
 }
 
 /* ---------- Avvisi in alto (al posto di alert) ---------- */
-function showToast(message, type = 'info') {
+function showToast(message, type = 'info', duration = 2600) {
   const container = document.getElementById('toast-container');
   if (!container) return;
   const toast = document.createElement('div');
@@ -346,7 +350,7 @@ function showToast(message, type = 'info') {
     toast.style.opacity = '0';
     toast.style.transform = 'translateY(-10px)';
     setTimeout(() => toast.remove(), 300);
-  }, 2600);
+  }, duration);
 }
 
 /* ---------- Imprevisti: lo stesso riquadro giallo in tutti i giochi ---------- */
@@ -386,7 +390,7 @@ if (typeof document !== 'undefined' && document.addEventListener) {
   document.addEventListener('click', () => { requestScreenWakeLock(); }, { once: true });
 }
 
-/* ---------- Aggiornamenti dell'app (funzioni pure) ---------- */
+/* ---------- Aggiornamenti dell'app (funzioni pure, con i test in tests/common.test.js) ---------- */
 /** "v1.2.3" o "1.2.3" → [1, 2, 3], altrimenti null. */
 function parseVersion(v) {
   const m = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(String(v || '').trim());
@@ -403,21 +407,88 @@ function isNewerVersion(candidate, current) {
   return false;
 }
 
+/** Solo file .apk delle Release di Nikcirri/cincin, senza trucchi nel percorso (come nel plugin Android). */
+function isAllowedApkUrl(url) {
+  return typeof url === 'string'
+    && url.startsWith(UPDATE_APK_PREFIX)
+    && url.endsWith('.apk')
+    && !url.includes('..')
+    && !url.includes('?')
+    && !url.includes('#')
+    && !/\s/.test(url);
+}
+
+/** Tra i file della Release sceglie l'APK di Cin Cin (prima quelli che si chiamano CinCin-…). */
+function pickApkAsset(assets) {
+  const apks = (Array.isArray(assets) ? assets : []).filter(a =>
+    a && typeof a.name === 'string' && a.name.toLowerCase().endsWith('.apk') && isAllowedApkUrl(a.browser_download_url));
+  const preferred = apks.find(a => a.name.startsWith('CinCin-')) || apks[0];
+  return preferred ? preferred.browser_download_url : null;
+}
+
+/**
+ * Le prime voci dell'elenco delle novità (dal CHANGELOG, copiato nella Release da GitHub Actions):
+ * solo le righe dell'elenco principale che iniziano con "- " (non quelle rientrate), fino al primo titolo dopo l'elenco.
+ */
+function releaseNotes(body, max = 6) {
+  const notes = [];
+  const lines = String(body || '').replace(/\r/g, '').split('\n');
+  for (const raw of lines) {
+    if (raw.trim().startsWith('#') && notes.length > 0) break;
+    if (!/^[-*] /.test(raw)) continue;
+    let text = raw.slice(2).replace(/[*`]/g, '').replace(/\s+/g, ' ').trim();
+    if (!text) continue;
+    if (text.length > 110) text = `${text.slice(0, 109).trimEnd()}…`;
+    notes.push(text);
+    if (notes.length >= max) break;
+  }
+  return notes;
+}
+
 /** Dati utili dalla risposta di GitHub (null se non è una Release valida). */
 function parseRelease(json) {
   if (!json || typeof json !== 'object' || typeof json.tag_name !== 'string' || !parseVersion(json.tag_name)) return null;
-  const assets = Array.isArray(json.assets) ? json.assets : [];
-  const apk = assets.find(a => a && typeof a.name === 'string' && a.name.endsWith('.apk') && typeof a.browser_download_url === 'string');
+  const pageOk = typeof json.html_url === 'string' && json.html_url.startsWith('https://github.com/Nikcirri/cincin/');
   return {
-    version: json.tag_name.replace(/^v/, ''),
-    apkUrl: apk ? apk.browser_download_url : null,
-    pageUrl: typeof json.html_url === 'string' ? json.html_url : UPDATE_PAGE_URL
+    version: json.tag_name.trim().replace(/^v/, ''),
+    apkUrl: pickApkAsset(json.assets),
+    pageUrl: pageOk ? json.html_url : UPDATE_PAGE_URL,
+    notes: typeof json.body === 'string' ? releaseNotes(json.body) : []
   };
 }
 
-/** Controllo automatico al massimo una volta ogni 24 ore. */
+/** Controllo automatico al massimo ogni 10 minuti. */
 function shouldAutoCheck(lastCheckIso, now) {
   if (!lastCheckIso) return true;
   const last = new Date(lastCheckIso).getTime();
-  return !Number.isFinite(last) || now.getTime() - last >= UPDATE_AUTO_CHECK_HOURS * 3600000;
+  return !Number.isFinite(last) || now.getTime() - last >= UPDATE_AUTO_CHECK_MINUTES * 60000;
+}
+
+/** Stato degli aggiornamenti salvato sul telefono, ripulito (valori strani → vuoti). */
+function sanitizeUpdateState(saved) {
+  const s = saved && typeof saved === 'object' ? saved : {};
+  return {
+    lastCheck: typeof s.lastCheck === 'string' ? s.lastCheck : null,
+    latestVersion: typeof s.latestVersion === 'string' && parseVersion(s.latestVersion) ? s.latestVersion : null,
+    apkUrl: isAllowedApkUrl(s.apkUrl) ? s.apkUrl : null,
+    pageUrl: typeof s.pageUrl === 'string' && s.pageUrl.startsWith('https://github.com/Nikcirri/cincin/') ? s.pageUrl : UPDATE_PAGE_URL,
+    notes: Array.isArray(s.notes) ? s.notes.filter(n => typeof n === 'string').slice(0, 6) : []
+  };
+}
+
+/** L'ultima versione già vista su GitHub, se è più nuova di quella installata (senza chiedere di nuovo a GitHub). */
+function cachedRelease(state, currentVersion) {
+  const s = sanitizeUpdateState(state);
+  if (!s.latestVersion || !isNewerVersion(s.latestVersion, currentVersion)) return null;
+  return { version: s.latestVersion, apkUrl: s.apkUrl, pageUrl: s.pageUrl, notes: s.notes };
+}
+
+/**
+ * Primo avvio dopo un aggiornamento? lastVersion = versione dell'avvio precedente (null se non salvata),
+ * usedBefore = sul telefono c'erano già dati di Cin Cin (le versioni fino alla 1.1.0 non salvavano la versione).
+ */
+function shouldAnnounceUpdate(lastVersion, currentVersion, usedBefore) {
+  if (!parseVersion(currentVersion)) return false;
+  if (lastVersion) return isNewerVersion(currentVersion, lastVersion);
+  return !!usedBefore;
 }

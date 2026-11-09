@@ -5,8 +5,11 @@ import { loadScripts } from './load.js';
 
 const C = loadScripts(['common.js'], [
   'parseVersion', 'isNewerVersion', 'parseRelease', 'shouldAutoCheck', 'shuffleArray',
-  'escapeHtml', 'cleanPlayerNames', 'makeId', 'UPDATE_API_URL', 'UPDATE_PAGE_URL'
+  'escapeHtml', 'cleanPlayerNames', 'makeId', 'UPDATE_API_URL', 'UPDATE_PAGE_URL', 'UPDATE_APK_PREFIX',
+  'isAllowedApkUrl', 'pickApkAsset', 'releaseNotes', 'sanitizeUpdateState', 'cachedRelease', 'shouldAnnounceUpdate'
 ]);
+
+const APK = 'https://github.com/Nikcirri/cincin/releases/download/v1.4.0/CinCin-v1.4.0.apk';
 
 test('versioni: lettura e confronto', () => {
   assert.deepEqual([...C.parseVersion('v1.2.3')], [1, 2, 3]);
@@ -21,27 +24,95 @@ test('versioni: lettura e confronto', () => {
   assert.ok(!C.isNewerVersion('rotto', '1.0.0'));
 });
 
-test('release di GitHub: trova la versione e il file APK', () => {
+test('release di GitHub: versione, file APK, pagina e novità', () => {
   const r = C.parseRelease({
     tag_name: 'v1.4.0',
     html_url: 'https://github.com/Nikcirri/cincin/releases/tag/v1.4.0',
-    assets: [{ name: 'note.txt', browser_download_url: 'x' }, { name: 'CinCin-v1.4.0.apk', browser_download_url: 'https://esempio/apk' }]
+    body: 'Introduzione.\n\n- **Uno**: primo\n  - dettaglio rientrato\n- `Due`\n\n### Come installare\n- non è una novità',
+    assets: [{ name: 'note.txt', browser_download_url: 'x' }, { name: 'CinCin-v1.4.0.apk', browser_download_url: APK }]
   });
   assert.equal(r.version, '1.4.0');
-  assert.equal(r.apkUrl, 'https://esempio/apk');
+  assert.equal(r.apkUrl, APK);
+  assert.equal(r.pageUrl, 'https://github.com/Nikcirri/cincin/releases/tag/v1.4.0');
+  assert.deepEqual([...r.notes], ['Uno: primo', 'Due']);
   assert.equal(C.parseRelease({ tag_name: 'nightly' }), null);
   assert.equal(C.parseRelease(null), null);
   assert.equal(C.parseRelease({ tag_name: 'v1.0.0' }).apkUrl, null);
+  assert.deepEqual([...C.parseRelease({ tag_name: 'v1.0.0' }).notes], []);
+  assert.equal(C.parseRelease({ tag_name: 'v1.0.0', html_url: 'https://cattivo.example/x' }).pageUrl, C.UPDATE_PAGE_URL, 'pagina di un altro sito ignorata');
   assert.match(C.UPDATE_API_URL, /repos\/Nikcirri\/cincin\/releases\/latest$/);
   assert.match(C.UPDATE_PAGE_URL, /Nikcirri\/cincin\/releases\/latest$/);
 });
 
-test('controllo automatico al massimo una volta al giorno', () => {
-  const now = new Date('2026-11-06T20:00:00Z');
+test('indirizzi dell\'APK: solo le Release di Nikcirri/cincin', () => {
+  assert.equal(C.UPDATE_APK_PREFIX, 'https://github.com/Nikcirri/cincin/releases/download/');
+  assert.ok(C.isAllowedApkUrl(APK));
+  for (const bad of [
+    null,
+    '',
+    'http://github.com/Nikcirri/cincin/releases/download/v1.4.0/CinCin-v1.4.0.apk',
+    'https://github.com/Nikcirri/altro/releases/download/v1.4.0/CinCin-v1.4.0.apk',
+    'https://github.com/Nikcirri/cincin/releases/download/v1.4.0/CinCin-v1.4.0.zip',
+    'https://github.com/Nikcirri/cincin/releases/download/../../altro/x.apk',
+    'https://github.com/Nikcirri/cincin/releases/download/v1/x.apk?y=.apk',
+    'https://github.com/Nikcirri/cincin/releases/download/v1/x .apk',
+    'https://github.com.cattivo.example/Nikcirri/cincin/releases/download/v1/x.apk'
+  ]) {
+    assert.ok(!C.isAllowedApkUrl(bad), `rifiutato: ${bad}`);
+  }
+});
+
+test('scelta del file APK tra quelli della Release', () => {
+  assert.equal(C.pickApkAsset([
+    { name: 'altro.apk', browser_download_url: 'https://github.com/Nikcirri/cincin/releases/download/v1.4.0/altro.apk' },
+    { name: 'CinCin-v1.4.0.apk', browser_download_url: APK }
+  ]), APK, 'prima quello che si chiama CinCin-…');
+  assert.equal(C.pickApkAsset([{ name: 'CinCin-v1.4.0.apk', browser_download_url: 'https://altrove.example/CinCin.apk' }]), null, 'mai da altri siti');
+  assert.equal(C.pickApkAsset([{ name: 'note.txt', browser_download_url: APK.replace('.apk', '.txt') }]), null);
+  assert.equal(C.pickApkAsset('rotto'), null);
+});
+
+test('novità: solo l\'elenco principale, al massimo 6, testi lunghi accorciati', () => {
+  const body = Array.from({ length: 9 }, (_, i) => `- Novità ${i + 1}`).join('\n');
+  assert.equal(C.releaseNotes(body).length, 6);
+  assert.equal(C.releaseNotes(body, 3).length, 3);
+  const long = C.releaseNotes(`- ${'parola '.repeat(40)}`)[0];
+  assert.ok(long.length <= 110 && long.endsWith('…'));
+  assert.deepEqual([...C.releaseNotes('niente elenco')], []);
+  assert.deepEqual([...C.releaseNotes('- Uno\r\n- Due\r\n')], ['Uno', 'Due'], 'a capo di Windows');
+});
+
+test('controllo automatico al massimo ogni 10 minuti', () => {
+  const now = new Date('2026-11-09T12:00:00Z');
   assert.ok(C.shouldAutoCheck(null, now));
   assert.ok(C.shouldAutoCheck('rotto', now));
-  assert.ok(!C.shouldAutoCheck('2026-11-06T10:00:00Z', now));
-  assert.ok(C.shouldAutoCheck('2026-11-05T19:00:00Z', now));
+  assert.ok(!C.shouldAutoCheck('2026-11-09T11:55:00Z', now));
+  assert.ok(C.shouldAutoCheck('2026-11-09T11:50:00Z', now));
+  assert.ok(C.shouldAutoCheck('2026-11-08T12:00:00Z', now));
+});
+
+test('ultima versione già vista: usata senza chiedere di nuovo a GitHub', () => {
+  const state = { lastCheck: '2026-11-09T11:55:00Z', latestVersion: '1.4.0', apkUrl: APK, pageUrl: 'https://github.com/Nikcirri/cincin/releases/tag/v1.4.0', notes: ['Uno', 2] };
+  const r = C.cachedRelease(state, '1.2.0');
+  assert.equal(r.version, '1.4.0');
+  assert.equal(r.apkUrl, APK);
+  assert.deepEqual([...r.notes], ['Uno']);
+  assert.equal(C.cachedRelease(state, '1.4.0'), null, 'già installata');
+  assert.equal(C.cachedRelease(null, '1.2.0'), null);
+  assert.equal(C.cachedRelease({ ...state, apkUrl: 'https://altrove.example/x.apk' }, '1.2.0').apkUrl, null, 'APK di altri siti ignorato');
+  const clean = C.sanitizeUpdateState({ latestVersion: 'rotta', pageUrl: 'https://altrove.example' });
+  assert.equal(clean.latestVersion, null);
+  assert.equal(clean.pageUrl, C.UPDATE_PAGE_URL);
+});
+
+test('messaggio "App aggiornata" solo al primo avvio dopo un aggiornamento', () => {
+  assert.ok(C.shouldAnnounceUpdate('1.1.0', '1.2.0', true));
+  assert.ok(!C.shouldAnnounceUpdate('1.2.0', '1.2.0', true), 'stessa versione');
+  assert.ok(!C.shouldAnnounceUpdate('1.3.0', '1.2.0', true), 'versione più vecchia');
+  assert.ok(C.shouldAnnounceUpdate(null, '1.2.0', true), 'dalla 1.1.0 (che non salvava la versione)');
+  assert.ok(!C.shouldAnnounceUpdate(null, '1.2.0', false), 'prima installazione');
+  assert.ok(!C.shouldAnnounceUpdate('1.1.0', '0.0.0-dev', true), 'versione di prova senza numero vero');
+  assert.ok(!C.shouldAnnounceUpdate('1.1.0', 'rotta', true));
 });
 
 test('mescolare non perde e non duplica niente', () => {
