@@ -213,6 +213,12 @@ const SOUNDS = {
     { freq: 880, start: 0.08, dur: 0.22, type: 'triangle', gain: 0.12 }
   ],
   remove: [{ freq: 300, to: 170, dur: 0.13, gain: 0.09 }],
+  // Tre "glu" che scendono: qualcuno beve
+  drink: [
+    { freq: 240, to: 170, dur: 0.09, gain: 0.11 },
+    { freq: 220, to: 150, start: 0.11, dur: 0.09, gain: 0.11 },
+    { freq: 200, to: 130, start: 0.22, dur: 0.12, gain: 0.12 }
+  ],
   tick: [{ freq: 880, dur: 0.06, gain: 0.12 }],
   buzzer: [{ freq: 170, to: 125, dur: 0.42, type: 'sawtooth', gain: 0.2 }]
 };

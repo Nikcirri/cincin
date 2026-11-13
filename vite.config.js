@@ -19,6 +19,7 @@ export default defineConfig({
         home: 'index.html',
         haiMai: 'hai-mai.html',
         neonSips: 'neon-sips.html',
+        veritaOBevi: 'verita-o-bevi.html',
       },
     },
   },

@@ -1,5 +1,17 @@
 # Novità
 
+## [1.3.0] - 2026-11-13
+
+Nuovo gioco: Verità o Bevi, per conoscersi davvero.
+
+- Nuovo gioco "Verità o Bevi": a turno una domanda per te, rispondi sinceramente o bevi.
+- 240 domande in 6 livelli: Rompighiaccio, Serata alcolica, Personali, Scomode, Piccanti e Hot spinto.
+- Classifica della serata: chi è stato il più sincero e chi il più misterioso.
+- Crescendo: si parte con domande leggere e si sale di livello man mano che la serata va avanti.
+- Imprevisti: rispondono tutti, sorsi doppi, rimbalzo, sottovoce, verità o bugia, pass gratuito.
+- I livelli Piccanti e Hot spinto (18+) si accendono solo dopo la conferma che siete tutti maggiorenni.
+- Le vostre domande, "Cambia domanda", chi arriva e chi se ne va a partita in corso; la partita si salva da sola.
+
 ## [1.2.0] - 2026-11-10
 
 Aggiornamenti direttamente dall'app, senza passare dal browser.

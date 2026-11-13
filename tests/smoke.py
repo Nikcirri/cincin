@@ -62,7 +62,8 @@ def test_home(page, base):
     print("Menu iniziale")
     open_page(page, base + "/index.html")
     check(page.locator("h1").inner_text().strip() == "CIN CIN", "titolo Cin Cin")
-    check(page.locator(".home-game-card").count() == 2, "due giochi nel menu")
+    check(page.locator(".home-game-card").count() == 3, "tre giochi nel menu")
+    check(page.locator("[data-game=verita-o-bevi]").get_attribute("href") == "./verita-o-bevi.html", "link a Verità o Bevi")
     check(page.locator("[data-game=hai-mai]").get_attribute("href") == "./hai-mai.html", "link a Hai Mai?")
     check(page.locator("[data-game=neon-sips]").get_attribute("href") == "./neon-sips.html", "link a Neon Sips")
     check("Versione" in page.locator("#footer-version").inner_text(), "versione in fondo")
@@ -284,6 +285,129 @@ def test_hai_mai(page, base):
     back(page)
 
 
+def test_verita(page, base):
+    print("Verità o Bevi")
+    open_page(page, base + "/verita-o-bevi.html")
+    common_checks(page, "Verità o Bevi")
+    check(page.locator("#players-list > div").count() == 3, "i nomi salvati arrivano anche qui")
+    check(page.locator("#selected-count-badge").inner_text() == "160 domande", "160 domande (livelli 18+ spenti)")
+    check(page.locator("#categories-list label").count() == 6, "6 livelli")
+    check(page.locator("#crescendo-toggle").is_checked() and page.locator("#twists-toggle").is_checked(), "crescendo e imprevisti accesi")
+
+    # Livelli 18+: prima la conferma
+    page.locator("#categories-list input").nth(5).click()
+    page.wait_for_timeout(350)
+    check(page.locator("#adult-modal").is_visible(), "accendendo Hot spinto si chiede se siete maggiorenni")
+    check(not page.locator("#categories-list input").nth(5).is_checked(), "finché non confermi resta spento")
+    shot(page, "verita-adult")
+    back(page)
+    check(page.locator("#selected-count-badge").inner_text() == "160 domande", "annullato: niente domande hot")
+    page.locator("#categories-list input").nth(5).click()
+    page.wait_for_timeout(350)
+    page.click("text=Siamo tutti maggiorenni")
+    page.wait_for_timeout(300)
+    check(page.locator("#selected-count-badge").inner_text() == "200 domande", "confermato: Hot spinto acceso")
+    page.locator("#categories-list input").nth(4).check()
+    page.wait_for_timeout(200)
+    check(page.locator("#adult-modal").is_hidden(), "la conferma vale una volta sola")
+    check(page.locator("#selected-count-badge").inner_text() == "240 domande", "tutti i livelli: 240 domande")
+    shot(page, "verita-setup")
+
+    # Partita: si parte leggeri, a turno
+    page.click("#start-btn")
+    page.wait_for_timeout(600)
+    check(page.locator("#game-screen").is_visible(), "partita iniziata")
+    check(page.locator("#vb-counter").inner_text() == "1 / 240", "domanda 1 di 240")
+    check(page.evaluate("VERITA_CATEGORIES[currentQuestion().category].level") <= 2, "col crescendo si parte leggeri")
+    first = page.locator("#turn-name").inner_text()
+    check(page.locator("#vb-for").inner_text() == first, "la domanda è per chi è di turno")
+    page.evaluate("vbMatch.twistId = null; fillCard()")
+    page.click("#vb-answer-btn")
+    page.wait_for_timeout(450)
+    check(page.evaluate("vbMatch.stats[vbPlayers[0].id].answered") == 1, "risposta contata")
+    check(page.locator("#turn-name").inner_text() != first, "poi tocca al prossimo")
+    page.evaluate("vbMatch.twistId = null; fillCard()")
+    second = page.evaluate("vbMatch.p1Id")
+    page.click("#vb-drink-btn")
+    page.wait_for_timeout(450)
+    check("beve" in page.locator("#toast-container").inner_text(), "chi beve viene annunciato")
+    check(page.evaluate(f"vbMatch.stats['{second}'].drunk") == 1, "bevuta contata")
+
+    # Imprevisti: pass e sorsi doppi
+    page.evaluate("vbMatch.twistId = 'pass'; fillCard()")
+    check(page.locator("#vb-drink-label").inner_text() == "Salto (pass)", "con il pass si salta senza bere")
+    third = page.evaluate("vbMatch.p1Id")
+    page.click("#vb-drink-btn")
+    page.wait_for_timeout(450)
+    check(page.evaluate(f"vbMatch.stats['{third}'].passed") == 1 and page.evaluate(f"vbMatch.stats['{third}'].drunk") == 0, "pass contato, niente sorsi")
+    page.evaluate("vbMatch.twistId = 'doppio'; fillCard()")
+    page.wait_for_timeout(800)
+    doubled = page.evaluate("refusalSips(currentQuestion().category, 'doppio')")
+    check(page.locator("#vb-drink-label").inner_text() == f"Bevo {doubled}", f"sorsi doppi ({doubled})")
+    check(page.locator("#vb-twist .twist-box").is_visible(), "riquadro dell'imprevisto")
+    check(page.evaluate("vbMatch.p1Id") and page.locator("#turn-name").inner_text() in page.locator("#vb-twist").inner_text(), "l'imprevisto nomina chi è di turno")
+    shot(page, "verita-card")
+
+    # {p2} con un nome strano: resta testo
+    page.evaluate("""() => {
+      vbMatch.order[vbMatch.index] = 'd28';
+      vbMatch.twistId = null;
+      vbMatch.p1Id = vbPlayers.find(p => !p.name.includes('Carla')).id;
+      vbMatch.p2Id = vbPlayers.find(p => p.name.includes('Carla')).id;
+      fillCard();
+    }""")
+    check(page.locator("#vb-question b").count() == 0 and "<b>Carla</b>" in page.locator("#vb-question").inner_text(), "il nome nella domanda resta testo")
+    check("{p2}" not in page.locator("#vb-question").inner_text(), "{p2} sostituito dal nome")
+
+    # Cambia domanda: stessa persona
+    who = page.evaluate("vbMatch.p1Id")
+    idx = page.evaluate("vbMatch.index")
+    page.click("text=Cambia domanda")
+    page.wait_for_timeout(450)
+    check(page.evaluate("vbMatch.p1Id") == who and page.evaluate("vbMatch.index") == idx + 1, "Cambia domanda: stessa persona, domanda nuova")
+
+    # Opzioni: arriva e se ne va qualcuno; classifica
+    page.click("button[title='Opzioni Partita']")
+    page.wait_for_timeout(300)
+    page.fill("#midgame-player-input", "Elena")
+    page.press("#midgame-player-input", "Enter")
+    check(page.evaluate("vbPlayers.length") == 4, "nuovo arrivato al tavolo")
+    page.locator("#midgame-players-list button").nth(3).click()
+    check(page.evaluate("vbPlayers.length") == 3, "chi se ne va esce dal tavolo")
+    check(page.evaluate("vbPlayers.some(p => p.id === vbMatch.p1Id) && vbMatch.p1Id !== vbMatch.p2Id"), "turno sempre a qualcuno al tavolo")
+    page.click("text=Classifica della serata")
+    page.wait_for_timeout(350)
+    check("il più sincero" in page.locator("#leaderboard-titles").inner_text().lower(), "classifica della serata")
+    check(page.locator("#leaderboard-list > div").count() == 3, "tutti i giocatori in classifica")
+    shot(page, "verita-classifica")
+    back(page)
+    back(page)
+    check(page.locator("#game-screen").is_visible(), "Indietro chiude prima le finestre")
+
+    # Domanda vostra
+    page.evaluate("openCustomModal()")
+    page.wait_for_timeout(300)
+    page.fill("#custom-input", "qual è il segreto del gruppo")
+    page.press("#custom-input", "Enter")
+    check(page.evaluate("vbCustom[0].text") == "Qual è il segreto del gruppo?", "domanda vostra sistemata")
+    check(page.evaluate("vbMatch.order.includes(vbCustom[0].id)"), "entra nella partita in corso")
+    back(page)
+
+    # Riapro la pagina: partita salvata
+    current = page.evaluate("currentQuestion().text")
+    back(page)
+    check(page.locator("#setup-screen").is_visible(), "Indietro dalla partita torna ai giocatori")
+    check(page.locator("#categories-list label").count() == 7, "compare il livello Le vostre")
+    back(page, False)
+    open_page(page, base + "/verita-o-bevi.html")
+    check(page.locator("#resume-btn").is_visible(), "partita salvata")
+    page.click("#resume-btn")
+    page.wait_for_timeout(300)
+    check(page.evaluate("currentQuestion().text") == current, "si riprende dalla stessa domanda")
+    check(page.evaluate("Object.keys(vbMatch.stats).length") >= 2, "i conti della serata restano")
+    back(page)
+
+
 APP_VERSION = json.loads((ROOT.parent / "package.json").read_text())["version"]
 APK_URL = "https://github.com/Nikcirri/cincin/releases/download/v9.9.9/CinCin-v9.9.9.apk"
 
@@ -442,11 +566,12 @@ def main():
         test_home(page, base)
         test_neon_sips(page, base)
         test_hai_mai(page, base)
+        test_verita(page, base)
         test_updates(browser, base)
 
         print("Menu con partite in corso")
         open_page(page, base + "/index.html")
-        check(page.locator(".home-game-card", has_text="Partita in corso").count() == 2, "il menu segna le partite in corso")
+        check(page.locator(".home-game-card", has_text="Partita in corso").count() == 3, "il menu segna le partite in corso")
         check(page.evaluate("loadSavedPlayerNames().length") == 3, "i nomi dei giocatori sono salvati")
         shot(page, "home-in-corso")
         browser.close()

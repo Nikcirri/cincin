@@ -33,6 +33,20 @@ const GAMES = [
     soft: 'rgba(217, 70, 239, 0.10)',
     gradient: 'from-fuchsia-400 to-purple-500',
     savedMatchKey: 'cincin_neon_match_v1'
+  },
+  {
+    id: 'verita-o-bevi',
+    name: 'Verità o Bevi',
+    href: './verita-o-bevi.html',
+    icon: 'fa-comments',
+    tagline: 'Per conoscersi davvero',
+    description: 'A turno una domanda per te: rispondi sinceramente o bevi. Sei livelli, da rompighiaccio a hot spinto (18+).',
+    chips: ['240 domande', '6 livelli', 'Classifica della serata'],
+    color: '#fb923c',
+    glow: 'rgba(251, 146, 60, 0.34)',
+    soft: 'rgba(251, 146, 60, 0.10)',
+    gradient: 'from-orange-300 to-rose-500',
+    savedMatchKey: 'cincin_verita_match_v1'
   }
 ];
 

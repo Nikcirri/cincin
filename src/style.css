@@ -244,7 +244,8 @@ body.page-leave {
 
 /* Pulsanti principali con gradiente neon che si muove: uno per gioco, stesso movimento */
 .btn-neon-main,
-.btn-neon-cyan {
+.btn-neon-cyan,
+.btn-neon-orange {
   background-size: 200% 200%;
   animation: gradientShift 4s ease infinite;
 }
@@ -259,8 +260,14 @@ body.page-leave {
   box-shadow: 0 8px 25px -4px rgba(34, 211, 238, 0.45);
 }
 
+.btn-neon-orange {
+  background-image: linear-gradient(135deg, #fb923c 0%, #f43f5e 50%, #d946ef 100%);
+  box-shadow: 0 8px 25px -4px rgba(251, 113, 133, 0.5);
+}
+
 .btn-neon-main:disabled,
-.btn-neon-cyan:disabled {
+.btn-neon-cyan:disabled,
+.btn-neon-orange:disabled {
   animation: none;
   box-shadow: none;
 }
