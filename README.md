@@ -6,7 +6,7 @@ Giochi per bere in compagnia, in un'unica app Android: dal menu iniziale scegli 
 
 - **Hai Mai?** – il classico: si legge la domanda ad alta voce e chi l'ha fatto beve. 120 domande in 4 categorie (Tranquille, Festa, Imbarazzanti, Piccanti 18+), imprevisti a sorpresa (al contrario, sorsi doppi, racconta…) e le vostre domande personalizzate.
 - **Neon Sips** – un mazzo di 70 carte con i nomi dei giocatori: catene a tempo, bersagli, duelli 1 contro 1, scudi, nuove regole, giuria e maledizioni, più gli imprevisti (giro al contrario, salta il turno, sorsi doppi…). Mazzo modificabile, carte personalizzate, imbucati a partita in corso.
-- **Verità o Bevi** – per conoscersi: a turno una domanda per ognuno, si risponde sinceramente o si beve. 240 domande in 6 livelli (Rompighiaccio, Serata alcolica, Personali, Scomode, Piccanti 18+, Hot spinto 18+), crescendo dal leggero allo spinto, imprevisti, classifica della serata e domande vostre. I livelli 18+ si accendono solo dopo la conferma che siete tutti maggiorenni.
+- **Verità o Bevi** – per conoscersi: a turno una domanda per ognuno, si risponde sinceramente o si beve. 240 domande in 6 livelli (Rompighiaccio, Serata alcolica, Personali, Scomode, Piccanti 18+, Hot spinto 18+), crescendo (2-3 domande leggere a testa, poi si sale di un livello a ogni giro, sempre un po' mescolato), imprevisti, classifica della serata e domande vostre. I livelli 18+ si accendono solo dopo la conferma che siete tutti maggiorenni.
 
 Suoni e vibrazione sono uguali in tutti i giochi e si spengono dal menu (ℹ️).
 

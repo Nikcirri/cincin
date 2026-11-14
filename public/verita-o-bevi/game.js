@@ -134,20 +134,18 @@ function pickOtherPlayer(excludeId) {
 
 /**
  * Livelli o domande cambiati a partita in corso: le domande già uscite restano,
- * quelle da fare si rifanno con i livelli accesi adesso (col crescendo si riparte dal livello a cui si era).
+ * quelle da fare si rifanno con i livelli accesi adesso (col crescendo la salita continua da dove si era).
  */
 function rebuildRemaining() {
   if (!vbMatch) return;
   const played = vbMatch.order.slice(0, vbMatch.index + 1).filter(id => vbQuestionsById.has(id));
   const playedSet = new Set(played);
   const pool = enabledQuestions().filter(q => !playedSet.has(q.id));
-  let remaining = buildVeritaOrder(pool, vbSettings.categories, vbSettings.crescendo);
-  if (vbSettings.crescendo && played.length > 0) {
-    const current = vbQuestionsById.get(played[played.length - 1]);
-    const level = current ? VERITA_CATEGORIES[current.category].level : 1;
-    const lv = id => VERITA_CATEGORIES[vbQuestionsById.get(id).category].level;
-    remaining = remaining.filter(id => lv(id) >= level - 1).concat(remaining.filter(id => lv(id) < level - 1));
-  }
+  const remaining = buildVeritaOrder(pool, vbSettings.categories, vbSettings.crescendo, undefined, {
+    players: vbPlayers.length,
+    // Dal secondo giro in poi la salita è già fatta
+    offset: vbMatch.round > 1 ? Infinity : played.length
+  });
   if (played.length === 0 && remaining.length === 0) {
     vbMatch = null;
     removeSaved(VB_KEYS.MATCH);
@@ -352,7 +350,7 @@ function toggleCrescendo(on) {
   playSound('tap');
   saveSettings();
   if (vbMatch) rebuildRemaining();
-  showToast(on ? '📈 Crescendo: si sale di livello piano piano' : 'Domande tutte mescolate', 'info');
+  showToast(on ? '📈 Crescendo: 2-3 domande leggere a testa, poi si sale' : 'Domande tutte mescolate', 'info');
 }
 
 function toggleTwists(on) {
@@ -391,7 +389,9 @@ function startVerita() {
     showToast('Servono almeno 2 giocatori!', 'warning');
     return;
   }
-  const order = buildVeritaOrder(allVeritaQuestions(vbCustom), vbSettings.categories, vbSettings.crescendo);
+  const order = buildVeritaOrder(allVeritaQuestions(vbCustom), vbSettings.categories, vbSettings.crescendo, undefined, {
+    players: vbPlayers.length
+  });
   if (order.length === 0) {
     showToast('Accendi almeno un livello!', 'warning');
     return;
@@ -465,8 +465,11 @@ function nextCard(nextPlayer) {
   if (vbMatch.index < vbMatch.order.length - 1) {
     vbMatch.index += 1;
   } else {
-    // Domande finite: si rimescolano tutte quelle dei livelli accesi
-    const order = buildVeritaOrder(allVeritaQuestions(vbCustom), vbSettings.categories, vbSettings.crescendo);
+    // Domande finite: si rimescolano tutte quelle dei livelli accesi (la salita è già stata fatta)
+    const order = buildVeritaOrder(allVeritaQuestions(vbCustom), vbSettings.categories, vbSettings.crescendo, undefined, {
+      players: vbPlayers.length,
+      offset: Infinity
+    });
     if (order.length === 0) {
       showToast('Accendi almeno un livello!', 'warning');
       showSetupScreen();

@@ -319,6 +319,12 @@ def test_verita(page, base):
     check(page.locator("#game-screen").is_visible(), "partita iniziata")
     check(page.locator("#vb-counter").inner_text() == "1 / 240", "domanda 1 di 240")
     check(page.evaluate("VERITA_CATEGORIES[currentQuestion().category].level") <= 2, "col crescendo si parte leggeri")
+    check(page.evaluate("""() => {
+      const n = crescendoStageSize(vbPlayers.length);
+      const lv = id => VERITA_CATEGORIES[vbQuestionsById.get(id).category].level;
+      return vbMatch.order.slice(0, n).every(id => lv(id) === 1)
+        && vbMatch.order.slice(0, n * 6).some(id => lv(id) === 6);
+    }"""), "prime 2-3 domande a testa leggere, poi si arriva fino alle hot")
     first = page.locator("#turn-name").inner_text()
     check(page.locator("#vb-for").inner_text() == first, "la domanda è per chi è di turno")
     page.evaluate("vbMatch.twistId = null; fillCard()")

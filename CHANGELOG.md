@@ -1,5 +1,13 @@
 # Novità
 
+## [1.3.1] - 2026-11-14
+
+Verità o Bevi: crescendo più veloce e più mescolato.
+
+- Crescendo: si parte con 2-3 domande leggere a testa, poi si sale di un livello a ogni giro.
+- Ogni giro mescola il livello nuovo con qualche domanda di quello prima: niente più blocchi da 40.
+- Alle Scomode e alle Hot si arriva in poche decine di domande; dopo la salita è tutto mescolato.
+
 ## [1.3.0] - 2026-11-13
 
 Nuovo gioco: Verità o Bevi, per conoscersi davvero.

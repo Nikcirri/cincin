@@ -487,20 +487,74 @@ function countVeritaByCategory(questions) {
 }
 
 /**
- * Ordine delle domande dei livelli accesi (solo gli id).
- * Con il crescendo si parte leggeri e si sale di livello piano piano (i livelli vicini si mescolano);
- * senza, è tutto mescolato a caso.
+ * Quante domande dura ogni tappa del crescendo: 2-3 a testa (2,5 in media), almeno 6.
+ * Con 2 giocatori 6, con 4 giocatori 10, con 6 giocatori 15.
  */
-function buildVeritaOrder(questions, categoriesOn, crescendo, random) {
+function crescendoStageSize(playersCount) {
+  const n = Math.max(2, Math.floor(Number(playersCount) || 2));
+  return Math.min(40, Math.max(6, Math.round(n * 2.5)));
+}
+
+/** Parte di ogni tappa (dalla seconda in poi) fatta di domande del livello appena passato: il "mix". */
+const CRESCENDO_MIX = 0.3;
+
+/**
+ * Ordine delle domande dei livelli accesi (solo gli id).
+ * Senza crescendo: tutto mescolato a caso.
+ * Con il crescendo:
+ *   - la serata sale a tappe: una tappa per livello acceso, lunga 2-3 domande a testa (crescendoStageSize);
+ *   - la prima tappa ha solo domande del livello più leggero; nelle altre circa 7 domande su 10 sono
+ *     del livello della tappa e 3 di quello prima (CRESCENDO_MIX), in ordine sparso;
+ *   - finita la salita, tutte le domande rimaste sono mescolate, con i livelli più spinti un po' più frequenti.
+ * options.players = quanti giocatori; options.offset = domande già fatte (per continuare la salita
+ * da dove si era quando si cambiano i livelli a partita in corso; Infinity = salita già finita).
+ */
+function buildVeritaOrder(questions, categoriesOn, crescendo, random, options) {
   const rnd = typeof random === 'function' ? random : Math.random;
+  const opts = options || {};
   const pool = questions.filter(q => categoriesOn[q.category] && VERITA_CATEGORIES[q.category]);
   if (!crescendo) return shuffleArray(pool.map(q => q.id), rnd);
-  const levels = [...new Set(pool.map(q => VERITA_CATEGORIES[q.category].level))].sort((a, b) => a - b);
-  const rank = new Map(levels.map((lv, i) => [lv, i]));
-  return pool
-    .map(q => ({ id: q.id, key: rank.get(VERITA_CATEGORIES[q.category].level) + rnd() * 1.6 }))
-    .sort((a, b) => a.key - b.key)
-    .map(x => x.id);
+
+  const levelOf = q => VERITA_CATEGORIES[q.category].level;
+  const levels = [...new Set(pool.map(levelOf))].sort((a, b) => a - b);
+  // Un mazzetto mescolato per ogni livello acceso (stesso livello = stesso mazzetto, anche "Le vostre")
+  const groups = levels.map(lv => shuffleArray(pool.filter(q => levelOf(q) === lv).map(q => q.id), rnd));
+
+  const stageSize = crescendoStageSize(opts.players);
+  const offset = Math.max(0, Number(opts.offset) || 0);
+  const order = [];
+
+  // Prende dal livello voluto; se è finito, dal livello della tappa, poi da quelli sotto, poi da quelli sopra
+  const takeFrom = (wanted, target) => {
+    const tries = [wanted, target];
+    for (let r = target - 1; r >= 0; r--) tries.push(r);
+    for (let r = target + 1; r < groups.length; r++) tries.push(r);
+    for (const r of tries) {
+      if (groups[r] && groups[r].length > 0) return groups[r].pop();
+    }
+    return null;
+  };
+
+  // Ogni tappa: quali livelli escono e in che ordine (le prime "skip" posizioni sono già state giocate)
+  for (let target = Math.floor(offset / stageSize); target < levels.length; target++) {
+    const mix = target > 0 ? Math.round(stageSize * CRESCENDO_MIX) : 0;
+    const wanted = shuffleArray(
+      Array.from({ length: stageSize }, (_, i) => (i < mix ? target - 1 : target)),
+      rnd
+    );
+    const skip = Math.max(0, offset - target * stageSize);
+    for (const w of wanted.slice(skip)) {
+      const id = takeFrom(w, target);
+      if (id === null) break;
+      order.push(id);
+    }
+  }
+
+  // Dopo la salita: tutto mescolato, i livelli più spinti escono un po' prima (sorteggio pesato)
+  const rest = [];
+  groups.forEach((g, rank) => g.forEach(id => rest.push({ id, key: Math.pow(rnd(), 1 / (1 + rank)) })));
+  rest.sort((a, b) => b.key - a.key);
+  return order.concat(rest.map(r => r.id));
 }
 
 function findVeritaTwist(id) {
